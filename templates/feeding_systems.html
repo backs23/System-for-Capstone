@@ -1,0 +1,208 @@
+{% extends "layout.html" %}
+
+{% block title %}Feeding Systems - AquaTech{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-100 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Automated Feeding Systems</h1>
+            <p class="text-gray-600">Intelligent feeding control with AI-powered optimization</p>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-full">
+                        <i data-lucide="clock" class="w-6 h-6 text-blue-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Next Feeding</p>
+                        <p class="text-xl font-bold text-gray-900">14:00</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <i data-lucide="package" class="w-6 h-6 text-green-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Feed Remaining</p>
+                        <p class="text-xl font-bold text-gray-900">285 kg</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-purple-100 rounded-full">
+                        <i data-lucide="activity" class="w-6 h-6 text-purple-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Today's Total</p>
+                        <p class="text-xl font-bold text-gray-900">8.3 kg</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-yellow-100 rounded-full">
+                        <i data-lucide="trending-up" class="w-6 h-6 text-yellow-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">FCR</p>
+                        <p class="text-xl font-bold text-gray-900">1.35</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Feeding Schedule -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">Today's Schedule</h2>
+                    <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                        Edit Schedule
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    {% for feeding in feeding_schedule %}
+                    <div class="flex items-center justify-between p-4 rounded-lg border {% if feeding.status == 'completed' %}bg-green-50 border-green-200{% elif feeding.status == 'pending' %}bg-yellow-50 border-yellow-200{% else %}bg-gray-50 border-gray-200{% endif %}">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                {% if feeding.status == 'completed' %}
+                                <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                                    <i data-lucide="check" class="w-5 h-5 text-white"></i>
+                                </div>
+                                {% elif feeding.status == 'pending' %}
+                                <div class="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center">
+                                    <i data-lucide="clock" class="w-5 h-5 text-white"></i>
+                                </div>
+                                {% else %}
+                                <div class="w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center">
+                                    <i data-lucide="calendar" class="w-5 h-5 text-white"></i>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="ml-4">
+                                <p class="font-medium text-gray-900">{{ feeding.time }}</p>
+                                <p class="text-sm text-gray-600">Amount: {{ feeding.amount }}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            {% if feeding.status == 'completed' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Completed
+                            </span>
+                            {% elif feeding.status == 'pending' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                Ready
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Scheduled
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Control Panel -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-6">Manual Control</h2>
+                
+                <div class="space-y-6">
+                    <!-- Manual Feed -->
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h3 class="font-medium text-gray-900 mb-3">Manual Feed</h3>
+                        <div class="flex space-x-3">
+                            <input type="number" placeholder="Amount (kg)" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                                Feed Now
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- System Controls -->
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h3 class="font-medium text-gray-900 mb-3">System Controls</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                Start System
+                            </button>
+                            <button class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                Emergency Stop
+                            </button>
+                            <button class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                Test Dispenser
+                            </button>
+                            <button class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                Maintenance Mode
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- System Status -->
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h3 class="font-medium text-gray-900 mb-3">System Status</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Motor Status</span>
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <div class="w-2 h-2 bg-green-400 rounded-full mr-1"></div>
+                                    Online
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Hopper Level</span>
+                                <span class="text-sm font-medium text-gray-900">78%</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Last Maintenance</span>
+                                <span class="text-sm text-gray-600">3 days ago</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="mt-8 bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-6">System Features</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="smartphone" class="w-6 h-6 text-blue-600"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Remote Control</h3>
+                    <p class="text-sm text-gray-600">Control feeding schedules from anywhere via mobile app</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="brain" class="w-6 h-6 text-green-600"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">AI Optimization</h3>
+                    <p class="text-sm text-gray-600">Machine learning algorithms optimize feeding for best FCR</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="shield-check" class="w-6 h-6 text-purple-600"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Reliable Operation</h3>
+                    <p class="text-sm text-gray-600">99.9% uptime with redundant safety systems</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
