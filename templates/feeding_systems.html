@@ -67,14 +67,21 @@
             <div class="bg-white rounded-lg shadow-lg p-6">
                 <div class="flex items-center justify-between mb-6">
                     <h2 class="text-xl font-bold text-gray-900">Today's Schedule</h2>
-                    <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                        Edit Schedule
-                    </button>
+                    <div class="space-x-2">
+                        <button id="addScheduleBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <i data-lucide="plus" class="w-4 h-4 inline mr-1"></i>
+                            Add Schedule
+                        </button>
+                        <button id="refreshScheduleBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-1"></i>
+                            Refresh
+                        </button>
+                    </div>
                 </div>
                 
-                <div class="space-y-4">
+                <div id="scheduleContainer" class="space-y-4">
                     {% for feeding in feeding_schedule %}
-                    <div class="flex items-center justify-between p-4 rounded-lg border {% if feeding.status == 'completed' %}bg-green-50 border-green-200{% elif feeding.status == 'pending' %}bg-yellow-50 border-yellow-200{% else %}bg-gray-50 border-gray-200{% endif %}">
+                    <div class="schedule-item flex items-center justify-between p-4 rounded-lg border {% if feeding.status == 'completed' %}bg-green-50 border-green-200{% elif feeding.status == 'pending' %}bg-yellow-50 border-yellow-200{% else %}bg-gray-50 border-gray-200{% endif %}" data-id="{{ feeding._id if feeding._id else loop.index }}">
                         <div class="flex items-center">
                             <div class="flex-shrink-0">
                                 {% if feeding.status == 'completed' %}
@@ -92,24 +99,34 @@
                                 {% endif %}
                             </div>
                             <div class="ml-4">
-                                <p class="font-medium text-gray-900">{{ feeding.time }}</p>
-                                <p class="text-sm text-gray-600">Amount: {{ feeding.amount }}</p>
+                                <p class="font-medium text-gray-900 schedule-time">{{ feeding.time }}</p>
+                                <p class="text-sm text-gray-600 schedule-amount">Amount: {{ feeding.amount if feeding.amount else feeding.amount_kg ~ ' kg' }}</p>
                             </div>
                         </div>
-                        <div class="text-right">
-                            {% if feeding.status == 'completed' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Completed
-                            </span>
-                            {% elif feeding.status == 'pending' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Ready
-                            </span>
-                            {% else %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                Scheduled
-                            </span>
-                            {% endif %}
+                        <div class="flex items-center space-x-2">
+                            <div class="status-badge">
+                                {% if feeding.status == 'completed' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Completed
+                                </span>
+                                {% elif feeding.status == 'pending' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    Ready
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    Scheduled
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="flex space-x-1">
+                                <button class="edit-schedule-btn bg-blue-500 hover:bg-blue-600 text-white p-1 rounded" title="Edit Schedule">
+                                    <i data-lucide="edit" class="w-4 h-4"></i>
+                                </button>
+                                <button class="delete-schedule-btn bg-red-500 hover:bg-red-600 text-white p-1 rounded" title="Delete Schedule">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
@@ -205,4 +222,344 @@
         </div>
     </div>
 </div>
+
+<!-- Edit/Add Schedule Modal -->
+<div id="scheduleModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div class="px-6 py-4 border-b">
+                <h3 id="modalTitle" class="text-lg font-semibold text-gray-900">Edit Feeding Schedule</h3>
+                <button id="closeModal" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            
+            <form id="scheduleForm" class="px-6 py-4">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                        <input type="time" id="scheduleTime" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount (kg)</label>
+                        <input type="number" id="scheduleAmount" step="0.1" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select id="scheduleStatus" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="scheduled">Scheduled</option>
+                            <option value="pending">Pending</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tank</label>
+                        <input type="text" id="scheduleTank" value="Tank A" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" id="cancelBtn" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" id="saveBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Initialize Lucide icons
+lucide.createIcons();
+
+// Global variables
+let currentScheduleId = null;
+let isEditMode = false;
+
+// DOM elements
+const modal = document.getElementById('scheduleModal');
+const modalTitle = document.getElementById('modalTitle');
+const scheduleForm = document.getElementById('scheduleForm');
+const scheduleContainer = document.getElementById('scheduleContainer');
+
+// Form fields
+const timeInput = document.getElementById('scheduleTime');
+const amountInput = document.getElementById('scheduleAmount');
+const statusSelect = document.getElementById('scheduleStatus');
+const tankInput = document.getElementById('scheduleTank');
+
+// Buttons
+const addScheduleBtn = document.getElementById('addScheduleBtn');
+const refreshScheduleBtn = document.getElementById('refreshScheduleBtn');
+const closeModalBtn = document.getElementById('closeModal');
+const cancelBtn = document.getElementById('cancelBtn');
+const saveBtn = document.getElementById('saveBtn');
+
+// Event listeners
+addScheduleBtn.addEventListener('click', openAddModal);
+refreshScheduleBtn.addEventListener('click', loadSchedules);
+closeModalBtn.addEventListener('click', closeModal);
+cancelBtn.addEventListener('click', closeModal);
+scheduleForm.addEventListener('submit', saveSchedule);
+
+// Close modal when clicking outside
+modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+});
+
+// Functions
+function openAddModal() {
+    isEditMode = false;
+    currentScheduleId = null;
+    modalTitle.textContent = 'Add New Feeding Schedule';
+    saveBtn.textContent = 'Add Schedule';
+    
+    // Clear form
+    timeInput.value = '';
+    amountInput.value = '';
+    statusSelect.value = 'scheduled';
+    tankInput.value = 'Tank A';
+    
+    showModal();
+}
+
+function openEditModal(scheduleId) {
+    isEditMode = true;
+    currentScheduleId = scheduleId;
+    modalTitle.textContent = 'Edit Feeding Schedule';
+    saveBtn.textContent = 'Save Changes';
+    
+    // Find the schedule item in the DOM
+    const scheduleItem = document.querySelector(`[data-id="${scheduleId}"]`);
+    if (scheduleItem) {
+        const time = scheduleItem.querySelector('.schedule-time').textContent;
+        const amountText = scheduleItem.querySelector('.schedule-amount').textContent;
+        const amount = amountText.match(/([0-9.]+)/)[1];
+        
+        // Get status from badge
+        const statusBadge = scheduleItem.querySelector('.status-badge span');
+        let status = 'scheduled';
+        if (statusBadge.classList.contains('bg-green-100')) {
+            status = 'completed';
+        } else if (statusBadge.classList.contains('bg-yellow-100')) {
+            status = 'pending';
+        }
+        
+        // Fill form
+        timeInput.value = time;
+        amountInput.value = amount;
+        statusSelect.value = status;
+        tankInput.value = 'Tank A';
+    }
+    
+    showModal();
+}
+
+function showModal() {
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+    modal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    currentScheduleId = null;
+    isEditMode = false;
+}
+
+async function saveSchedule(e) {
+    e.preventDefault();
+    
+    const scheduleData = {
+        time: timeInput.value,
+        amount_kg: parseFloat(amountInput.value),
+        status: statusSelect.value,
+        tank: tankInput.value
+    };
+    
+    try {
+        let response;
+        
+        if (isEditMode) {
+            // Update existing schedule
+            response = await fetch(`/api/feeding-schedule/${currentScheduleId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(scheduleData)
+            });
+        } else {
+            // Add new schedule
+            response = await fetch('/api/feeding-schedule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(scheduleData)
+            });
+        }
+        
+        if (response.ok) {
+            closeModal();
+            loadSchedules();
+            showNotification(isEditMode ? 'Schedule updated successfully!' : 'Schedule added successfully!', 'success');
+        } else {
+            throw new Error('Failed to save schedule');
+        }
+    } catch (error) {
+        console.error('Error saving schedule:', error);
+        showNotification('Error saving schedule. Please try again.', 'error');
+    }
+}
+
+async function deleteSchedule(scheduleId) {
+    if (!confirm('Are you sure you want to delete this feeding schedule?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/feeding-schedule/${scheduleId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadSchedules();
+            showNotification('Schedule deleted successfully!', 'success');
+        } else {
+            throw new Error('Failed to delete schedule');
+        }
+    } catch (error) {
+        console.error('Error deleting schedule:', error);
+        showNotification('Error deleting schedule. Please try again.', 'error');
+    }
+}
+
+async function loadSchedules() {
+    try {
+        const response = await fetch('/api/feeding-schedule');
+        if (!response.ok) throw new Error('Failed to load schedules');
+        
+        const schedules = await response.json();
+        renderSchedules(schedules);
+    } catch (error) {
+        console.error('Error loading schedules:', error);
+        showNotification('Error loading schedules. Please refresh the page.', 'error');
+    }
+}
+
+function renderSchedules(schedules) {
+    scheduleContainer.innerHTML = '';
+    
+    schedules.forEach(schedule => {
+        const scheduleElement = createScheduleElement(schedule);
+        scheduleContainer.appendChild(scheduleElement);
+    });
+    
+    // Re-initialize Lucide icons
+    lucide.createIcons();
+}
+
+function createScheduleElement(schedule) {
+    const div = document.createElement('div');
+    div.className = `schedule-item flex items-center justify-between p-4 rounded-lg border ${
+        schedule.status === 'completed' ? 'bg-green-50 border-green-200' :
+        schedule.status === 'pending' ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-200'
+    }`;
+    div.setAttribute('data-id', schedule._id);
+    
+    div.innerHTML = `
+        <div class="flex items-center">
+            <div class="flex-shrink-0">
+                <div class="w-10 h-10 ${
+                    schedule.status === 'completed' ? 'bg-green-500' :
+                    schedule.status === 'pending' ? 'bg-yellow-500' : 'bg-gray-400'
+                } rounded-full flex items-center justify-center">
+                    <i data-lucide="${
+                        schedule.status === 'completed' ? 'check' :
+                        schedule.status === 'pending' ? 'clock' : 'calendar'
+                    }" class="w-5 h-5 text-white"></i>
+                </div>
+            </div>
+            <div class="ml-4">
+                <p class="font-medium text-gray-900 schedule-time">${schedule.time}</p>
+                <p class="text-sm text-gray-600 schedule-amount">Amount: ${schedule.amount_kg || schedule.amount} kg</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <div class="status-badge">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    schedule.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    schedule.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
+                }">
+                    ${schedule.status.charAt(0).toUpperCase() + schedule.status.slice(1)}
+                </span>
+            </div>
+            <div class="flex space-x-1">
+                <button class="edit-schedule-btn bg-blue-500 hover:bg-blue-600 text-white p-1 rounded" title="Edit Schedule">
+                    <i data-lucide="edit" class="w-4 h-4"></i>
+                </button>
+                <button class="delete-schedule-btn bg-red-500 hover:bg-red-600 text-white p-1 rounded" title="Delete Schedule">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Add event listeners
+    const editBtn = div.querySelector('.edit-schedule-btn');
+    const deleteBtn = div.querySelector('.delete-schedule-btn');
+    
+    editBtn.addEventListener('click', () => openEditModal(schedule._id));
+    deleteBtn.addEventListener('click', () => deleteSchedule(schedule._id));
+    
+    return div;
+}
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-4 py-2 rounded-lg text-white z-50 ${
+        type === 'success' ? 'bg-green-500' : 'bg-red-500'
+    }`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Initialize event listeners for existing schedule items
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners to existing edit and delete buttons
+    document.querySelectorAll('.edit-schedule-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const scheduleItem = this.closest('.schedule-item');
+            const scheduleId = scheduleItem.getAttribute('data-id');
+            openEditModal(scheduleId);
+        });
+    });
+    
+    document.querySelectorAll('.delete-schedule-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const scheduleItem = this.closest('.schedule-item');
+            const scheduleId = scheduleItem.getAttribute('data-id');
+            deleteSchedule(scheduleId);
+        });
+    });
+});
+
+</script>
 {% endblock %}

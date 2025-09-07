@@ -308,6 +308,56 @@ class AquaTechDB:
             print(f"❌ Error inserting sensor data: {e}")
             return None
     
+    def update_feeding_schedule(self, schedule_id, schedule_data):
+        """Update a feeding schedule entry"""
+        try:
+            from bson.objectid import ObjectId
+            result = self.feeding_schedules.update_one(
+                {"_id": ObjectId(schedule_id)},
+                {"$set": schedule_data}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"❌ Error updating feeding schedule: {e}")
+            return False
+    
+    def add_feeding_schedule(self, schedule_data):
+        """Add a new feeding schedule entry"""
+        try:
+            # Ensure date is a date object
+            if isinstance(schedule_data.get('date'), str):
+                from datetime import datetime
+                schedule_data['date'] = datetime.strptime(schedule_data['date'], '%Y-%m-%d').date()
+            
+            result = self.feeding_schedules.insert_one(schedule_data)
+            return str(result.inserted_id)
+        except Exception as e:
+            print(f"❌ Error adding feeding schedule: {e}")
+            return None
+    
+    def delete_feeding_schedule(self, schedule_id):
+        """Delete a feeding schedule entry"""
+        try:
+            from bson.objectid import ObjectId
+            result = self.feeding_schedules.delete_one({"_id": ObjectId(schedule_id)})
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"❌ Error deleting feeding schedule: {e}")
+            return False
+    
+    def get_feeding_schedule_by_id(self, schedule_id):
+        """Get a specific feeding schedule by ID"""
+        try:
+            from bson.objectid import ObjectId
+            schedule = self.feeding_schedules.find_one({"_id": ObjectId(schedule_id)})
+            if schedule:
+                schedule['_id'] = str(schedule['_id'])
+                schedule['date'] = schedule['date'].isoformat()
+            return schedule
+        except Exception as e:
+            print(f"❌ Error fetching feeding schedule: {e}")
+            return None
+    
     def close_connection(self):
         """Close the MongoDB connection"""
         if self.client:
