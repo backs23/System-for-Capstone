@@ -1,0 +1,156 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="min-h-screen">
+    <!-- Hero Section -->
+    <section class="bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <div class="inline-block mb-4 bg-cyan-100 text-cyan-700 border border-cyan-200 px-3 py-1 rounded-full text-sm font-medium">
+                    Next-Generation Aquaculture
+                </div>
+                <h1 class="text-4xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+                    Smarter Farming with 
+                    <span class="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">IoT-Powered</span>
+                    <br />Water Monitoring & Feeding
+                </h1>
+                <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
+                    Revolutionary automated systems that transform aquaculture operations with real-time monitoring, 
+                    intelligent feeding, and cloud-based analytics for maximum productivity.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="{{ url_for('dashboard') }}" 
+                       class="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg rounded-lg font-medium transition-all duration-200">
+                        View Live Demo
+                        <i data-lucide="arrow-right" class="ml-2 w-5 h-5"></i>
+                    </a>
+                    <a href="{{ url_for('contact') }}" 
+                       class="inline-flex items-center justify-center px-6 py-3 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-colors">
+                        Get Custom Quote
+                    </a>
+                </div>
+            </div>
+
+            <!-- Feature Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+                {% for feature in features %}
+                <div class="bg-white/60 backdrop-blur-sm border-0 shadow-md hover:shadow-lg transition-all duration-300 rounded-lg p-6 text-center">
+                    <div class="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="{{ feature.icon }}" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">{{ feature.title }}</h3>
+                    <p class="text-sm text-gray-600">{{ feature.description }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Product Showcase -->
+    <section class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                    Complete Aquaculture Solutions
+                </h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Integrated monitoring and feeding systems designed for modern aquaculture operations
+                </p>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-12">
+                <!-- Water Quality Monitoring -->
+                <div class="overflow-hidden shadow-xl border-0 rounded-lg">
+                    <div class="bg-gradient-to-r from-cyan-500 to-blue-600 p-8 text-white">
+                        <div class="flex items-center mb-4">
+                            <i data-lucide="droplets" class="w-8 h-8 mr-3"></i>
+                            <h3 class="text-2xl font-bold">Water Quality Monitoring</h3>
+                        </div>
+                        <p class="text-cyan-100 mb-6">
+                            Comprehensive sensor network for real-time water parameter tracking with cloud integration
+                        </p>
+                    </div>
+                    <div class="p-8">
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            {% for sensor in sensors %}
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 bg-cyan-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i data-lucide="{{ sensor.icon }}" class="w-4 h-4 text-cyan-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-medium text-gray-900 text-sm">{{ sensor.name }}</h4>
+                                    <p class="text-xs text-gray-500">{{ sensor.desc }}</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <a href="{{ url_for('water_monitoring') }}" 
+                           class="w-full bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center justify-center">
+                            Explore Water Monitoring
+                            <i data-lucide="arrow-right" class="ml-2 w-4 h-4"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Automated Feeding -->
+                <div class="overflow-hidden shadow-xl border-0 rounded-lg">
+                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white">
+                        <div class="flex items-center mb-4">
+                            <i data-lucide="settings" class="w-8 h-8 mr-3"></i>
+                            <h3 class="text-2xl font-bold">Automated Feeding Machine</h3>
+                        </div>
+                        <p class="text-blue-100 mb-6">
+                            Intelligent feeding systems with AI-powered optimization and remote control capabilities
+                        </p>
+                    </div>
+                    <div class="p-8">
+                        <div class="space-y-4 mb-6">
+                            {% set feeding_features = [
+                                "Real-time monitoring & control interface",
+                                "Customizable feeding schedules",
+                                "IoT & AI technology integration", 
+                                "Mobile app remote control",
+                                "Feed conversion optimization",
+                                "24/7 customer support"
+                            ] %}
+                            {% for feature in feeding_features %}
+                            <div class="flex items-center space-x-3">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-green-500 flex-shrink-0"></i>
+                                <span class="text-gray-700 text-sm">{{ feature }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <a href="{{ url_for('feeding_systems') }}" 
+                           class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center justify-center">
+                            Explore Feeding Systems
+                            <i data-lucide="arrow-right" class="ml-2 w-4 h-4"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-20 bg-gradient-to-r from-cyan-600 to-blue-700">
+        <div class="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">
+                Ready to Transform Your Aquaculture Operation?
+            </h2>
+            <p class="text-xl text-cyan-100 mb-8">
+                Join leading aquaculture farms using our IoT solutions to increase efficiency and profitability
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{{ url_for('contact') }}" 
+                   class="inline-flex items-center justify-center px-6 py-3 bg-white text-cyan-600 hover:bg-gray-50 shadow-lg rounded-lg font-medium transition-colors">
+                    Schedule Consultation
+                </a>
+                <a href="{{ url_for('dashboard') }}" 
+                   class="inline-flex items-center justify-center px-6 py-3 border border-white text-white hover:bg-white hover:text-cyan-600 rounded-lg font-medium transition-colors">
+                    Try Live Demo
+                </a>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
