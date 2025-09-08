@@ -10,13 +10,13 @@
                     Next-Generation Aquaculture
                 </div>
                 <h1 class="text-4xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-                    Smarter Farming with 
+                    Advanced Aquaculture with 
                     <span class="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">IoT-Powered</span>
-                    <br />Water Monitoring & Feeding
+                    <br />Water Quality Monitoring
                 </h1>
                 <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-                    Revolutionary automated systems that transform aquaculture operations with real-time monitoring, 
-                    intelligent feeding, and cloud-based analytics for maximum productivity.
+                    Revolutionary water monitoring systems that transform aquaculture operations with real-time sensor data, 
+                    predictive analytics, and cloud-based insights for optimal water quality management.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
                     <a href="{{ url_for('dashboard') }}" 
@@ -51,27 +51,27 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16">
                 <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                    Complete Aquaculture Solutions
+                    Advanced Water Quality Solutions
                 </h2>
                 <p class="text-xl text-gray-600 max-w-3xl mx-auto">
-                    Integrated monitoring and feeding systems designed for modern aquaculture operations
+                    Comprehensive water monitoring systems designed for modern aquaculture operations
                 </p>
             </div>
 
-            <div class="grid lg:grid-cols-2 gap-12">
+            <div class="grid lg:grid-cols-1 max-w-4xl mx-auto">
                 <!-- Water Quality Monitoring -->
                 <div class="overflow-hidden shadow-xl border-0 rounded-lg">
                     <div class="bg-gradient-to-r from-cyan-500 to-blue-600 p-8 text-white">
-                        <div class="flex items-center mb-4">
-                            <i data-lucide="droplets" class="w-8 h-8 mr-3"></i>
-                            <h3 class="text-2xl font-bold">Water Quality Monitoring</h3>
+                        <div class="flex items-center mb-4 justify-center">
+                            <i data-lucide="droplets" class="w-10 h-10 mr-4"></i>
+                            <h3 class="text-3xl font-bold">Water Quality Monitoring System</h3>
                         </div>
-                        <p class="text-cyan-100 mb-6">
-                            Comprehensive sensor network for real-time water parameter tracking with cloud integration
+                        <p class="text-cyan-100 mb-6 text-center text-lg">
+                            Comprehensive sensor network for real-time water parameter tracking with advanced analytics and cloud integration
                         </p>
                     </div>
                     <div class="p-8">
-                        <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                             {% for sensor in sensors %}
                             <div class="flex items-start space-x-3">
                                 <div class="w-8 h-8 bg-cyan-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -84,47 +84,41 @@
                             </div>
                             {% endfor %}
                         </div>
-                        <a href="{{ url_for('water_monitoring') }}" 
-                           class="w-full bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center justify-center">
-                            Explore Water Monitoring
-                            <i data-lucide="arrow-right" class="ml-2 w-4 h-4"></i>
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Automated Feeding -->
-                <div class="overflow-hidden shadow-xl border-0 rounded-lg">
-                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white">
-                        <div class="flex items-center mb-4">
-                            <i data-lucide="settings" class="w-8 h-8 mr-3"></i>
-                            <h3 class="text-2xl font-bold">Automated Feeding Machine</h3>
-                        </div>
-                        <p class="text-blue-100 mb-6">
-                            Intelligent feeding systems with AI-powered optimization and remote control capabilities
-                        </p>
-                    </div>
-                    <div class="p-8">
-                        <div class="space-y-4 mb-6">
-                            {% set feeding_features = [
-                                "Real-time monitoring & control interface",
-                                "Customizable feeding schedules",
-                                "IoT & AI technology integration", 
-                                "Mobile app remote control",
-                                "Feed conversion optimization",
-                                "24/7 customer support"
-                            ] %}
-                            {% for feature in feeding_features %}
-                            <div class="flex items-center space-x-3">
-                                <i data-lucide="check-circle" class="w-5 h-5 text-green-500 flex-shrink-0"></i>
-                                <span class="text-gray-700 text-sm">{{ feature }}</span>
+                        
+                        <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                            <h4 class="font-semibold text-gray-900 mb-4 text-center">Key Features</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {% set water_features = [
+                                    "Real-time multi-parameter monitoring",
+                                    "Cloud-based data analytics",
+                                    "Automated alert system", 
+                                    "Historical data trends",
+                                    "Mobile dashboard access",
+                                    "Predictive water quality insights",
+                                    "ThingSpeak API integration",
+                                    "24/7 remote monitoring"
+                                ] %}
+                                {% for feature in water_features %}
+                                <div class="flex items-center space-x-3">
+                                    <i data-lucide="check-circle" class="w-5 h-5 text-green-500 flex-shrink-0"></i>
+                                    <span class="text-gray-700 text-sm">{{ feature }}</span>
+                                </div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
                         </div>
-                        <a href="{{ url_for('feeding_systems') }}" 
-                           class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center justify-center">
-                            Explore Feeding Systems
-                            <i data-lucide="arrow-right" class="ml-2 w-4 h-4"></i>
-                        </a>
+                        
+                        <div class="flex gap-4">
+                            <a href="{{ url_for('water_monitoring') }}" 
+                               class="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-3 rounded-lg font-medium transition-colors inline-flex items-center justify-center">
+                                Live Water Monitoring
+                                <i data-lucide="arrow-right" class="ml-2 w-4 h-4"></i>
+                            </a>
+                            <a href="{{ url_for('dashboard') }}" 
+                               class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium transition-colors inline-flex items-center justify-center">
+                                View Dashboard
+                                <i data-lucide="bar-chart-3" class="ml-2 w-4 h-4"></i>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>

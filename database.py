@@ -23,7 +23,6 @@ class AquaTechDB:
             
             # Initialize collections
             self.sensor_data = self.db.sensor_data
-            self.feeding_schedules = self.db.feeding_schedules
             self.alerts = self.db.alerts
             self.system_settings = self.db.system_settings
             
@@ -45,9 +44,6 @@ class AquaTechDB:
             # Index on timestamp for sensor data (for time-based queries)
             self.sensor_data.create_index([("timestamp", -1)])
             
-            # Index on feeding schedule times
-            self.feeding_schedules.create_index([("time", 1), ("date", 1)])
-            
             # Index on alert timestamps
             self.alerts.create_index([("timestamp", -1)])
             
@@ -62,10 +58,6 @@ class AquaTechDB:
             if self.sensor_data.count_documents({}) == 0:
                 print("📊 Initializing database with sample sensor data...")
                 self.seed_sensor_data()
-            
-            if self.feeding_schedules.count_documents({}) == 0:
-                print("🐟 Initializing feeding schedules...")
-                self.seed_feeding_data()
             
             if self.alerts.count_documents({}) == 0:
                 print("🚨 Initializing system alerts...")
@@ -104,52 +96,6 @@ class AquaTechDB:
         self.sensor_data.insert_many(sensor_readings)
         print(f"✅ Inserted {len(sensor_readings)} sensor readings")
     
-    def seed_feeding_data(self):
-        """Create feeding schedules for today"""
-        today = datetime.now().date()
-        
-        feeding_schedule = [
-            {
-                "date": today,
-                "time": "06:00",
-                "amount_kg": 2.5,
-                "status": "completed",
-                "completed_at": datetime.combine(today, datetime.strptime("06:05", "%H:%M").time()),
-                "tank": "Tank A"
-            },
-            {
-                "date": today,
-                "time": "10:00", 
-                "amount_kg": 3.0,
-                "status": "completed",
-                "completed_at": datetime.combine(today, datetime.strptime("10:02", "%H:%M").time()),
-                "tank": "Tank A"
-            },
-            {
-                "date": today,
-                "time": "14:00",
-                "amount_kg": 2.8,
-                "status": "pending",
-                "tank": "Tank A"
-            },
-            {
-                "date": today,
-                "time": "18:00",
-                "amount_kg": 2.5,
-                "status": "scheduled",
-                "tank": "Tank A"
-            },
-            {
-                "date": today,
-                "time": "22:00",
-                "amount_kg": 1.8,
-                "status": "scheduled",
-                "tank": "Tank A"
-            }
-        ]
-        
-        self.feeding_schedules.insert_many(feeding_schedule)
-        print(f"✅ Created {len(feeding_schedule)} feeding schedules")
     
     def seed_alerts_data(self):
         """Create sample system alerts"""
@@ -166,9 +112,8 @@ class AquaTechDB:
             {
                 "timestamp": datetime.now() - timedelta(hours=2),
                 "type": "info", 
-                "message": "Feeding completed successfully",
-                "feeding_id": "FEED_001",
-                "amount": 3.0,
+                "message": "Temperature sensor calibration completed",
+                "sensor_id": "SENSOR_002",
                 "acknowledged": True
             },
             {
@@ -205,12 +150,6 @@ class AquaTechDB:
                 "do_min": 4,
                 "turbidity_max": 40,
                 "ammonia_max": 1.0
-            },
-            "feeding_settings": {
-                "auto_feed_enabled": True,
-                "feed_type": "Premium Salmon Feed",
-                "daily_feed_percentage": 2.5,
-                "feeding_times": ["06:00", "10:00", "14:00", "18:00", "22:00"]
             },
             "system_info": {
                 "installation_date": datetime(2024, 1, 15),
@@ -258,27 +197,6 @@ class AquaTechDB:
             print(f"❌ Error fetching historical data: {e}")
             return []
     
-    def get_todays_feeding_schedule(self):
-        """Get feeding schedule for today"""
-        try:
-            today = datetime.now().date()
-            
-            cursor = self.feeding_schedules.find(
-                {"date": today},
-                sort=[("time", 1)]
-            )
-            
-            schedule = []
-            for feeding in cursor:
-                feeding['_id'] = str(feeding['_id'])
-                # Convert date to string for JSON serialization
-                feeding['date'] = feeding['date'].isoformat()
-                schedule.append(feeding)
-            
-            return schedule
-        except Exception as e:
-            print(f"❌ Error fetching feeding schedule: {e}")
-            return []
     
     def get_recent_alerts(self, limit=10):
         """Get recent system alerts"""
@@ -308,55 +226,9 @@ class AquaTechDB:
             print(f"❌ Error inserting sensor data: {e}")
             return None
     
-    def update_feeding_schedule(self, schedule_id, schedule_data):
-        """Update a feeding schedule entry"""
-        try:
-            from bson.objectid import ObjectId
-            result = self.feeding_schedules.update_one(
-                {"_id": ObjectId(schedule_id)},
-                {"$set": schedule_data}
-            )
-            return result.modified_count > 0
-        except Exception as e:
-            print(f"❌ Error updating feeding schedule: {e}")
-            return False
     
-    def add_feeding_schedule(self, schedule_data):
-        """Add a new feeding schedule entry"""
-        try:
-            # Ensure date is a date object
-            if isinstance(schedule_data.get('date'), str):
-                from datetime import datetime
-                schedule_data['date'] = datetime.strptime(schedule_data['date'], '%Y-%m-%d').date()
-            
-            result = self.feeding_schedules.insert_one(schedule_data)
-            return str(result.inserted_id)
-        except Exception as e:
-            print(f"❌ Error adding feeding schedule: {e}")
-            return None
     
-    def delete_feeding_schedule(self, schedule_id):
-        """Delete a feeding schedule entry"""
-        try:
-            from bson.objectid import ObjectId
-            result = self.feeding_schedules.delete_one({"_id": ObjectId(schedule_id)})
-            return result.deleted_count > 0
-        except Exception as e:
-            print(f"❌ Error deleting feeding schedule: {e}")
-            return False
     
-    def get_feeding_schedule_by_id(self, schedule_id):
-        """Get a specific feeding schedule by ID"""
-        try:
-            from bson.objectid import ObjectId
-            schedule = self.feeding_schedules.find_one({"_id": ObjectId(schedule_id)})
-            if schedule:
-                schedule['_id'] = str(schedule['_id'])
-                schedule['date'] = schedule['date'].isoformat()
-            return schedule
-        except Exception as e:
-            print(f"❌ Error fetching feeding schedule: {e}")
-            return None
     
     def close_connection(self):
         """Close the MongoDB connection"""

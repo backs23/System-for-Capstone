@@ -132,14 +132,14 @@
                 <div class="mt-6 pt-6 border-t border-gray-200">
                     <h4 class="text-md font-semibold text-gray-900 mb-3">Quick Controls</h4>
                     <div class="grid grid-cols-2 gap-3">
-                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                            Feed Now
-                        </button>
                         <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                             Test Water
                         </button>
                         <button class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                             Calibrate Sensors
+                        </button>
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            Reset Alerts
                         </button>
                         <button class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                             Export Data
@@ -175,23 +175,23 @@
                         </tr>
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">10:00 AM</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Automated Feeding</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Sensor Calibration</td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                     Complete
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">3.0 kg dispensed</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">pH and DO sensors calibrated</td>
                         </tr>
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">06:00 AM</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Automated Feeding</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Water Quality Alert</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Complete
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                    Resolved
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2.5 kg dispensed</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">pH level returned to normal</td>
                         </tr>
                     </tbody>
                 </table>

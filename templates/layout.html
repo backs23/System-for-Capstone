@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}AquaTech - Smart Aquaculture Solutions{% endblock %}</title>
+    <title>{% block title %}AquaTech - Water Quality Monitoring{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -29,7 +29,7 @@
                     </div>
                     <div>
                         <h1 class="text-xl font-bold text-gray-900">AquaTech</h1>
-                        <p class="text-xs text-gray-500">Smart Aquaculture Solutions</p>
+                        <p class="text-xs text-gray-500">Water Quality Monitoring</p>
                     </div>
                 </a>
 
@@ -44,11 +44,6 @@
                        class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 {{ 'bg-cyan-50 text-cyan-700 shadow-sm' if request.endpoint == 'water_monitoring' else 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                         <i data-lucide="droplets" class="w-4 h-4"></i>
                         Water Monitoring
-                    </a>
-                    <a href="{{ url_for('feeding_systems') }}" 
-                       class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 {{ 'bg-cyan-50 text-cyan-700 shadow-sm' if request.endpoint == 'feeding_systems' else 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i data-lucide="settings" class="w-4 h-4"></i>
-                        Feeding Systems
                     </a>
                     <a href="{{ url_for('dashboard') }}" 
                        class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 {{ 'bg-cyan-50 text-cyan-700 shadow-sm' if request.endpoint == 'dashboard' else 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -92,10 +87,6 @@
                     <i data-lucide="droplets" class="w-5 h-5"></i>
                     Water Monitoring
                 </a>
-                <a href="{{ url_for('feeding_systems') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 {{ 'bg-cyan-50 text-cyan-700' if request.endpoint == 'feeding_systems' else 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i data-lucide="settings" class="w-5 h-5"></i>
-                    Feeding Systems
-                </a>
                 <a href="{{ url_for('dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 {{ 'bg-cyan-50 text-cyan-700' if request.endpoint == 'dashboard' else 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                     <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
                     Dashboard Demo
@@ -131,11 +122,11 @@
                         </div>
                         <div>
                             <h3 class="text-lg font-bold">AquaTech</h3>
-                            <p class="text-sm text-gray-400">Smart Aquaculture Solutions</p>
+                            <p class="text-sm text-gray-400">Water Quality Monitoring</p>
                         </div>
                     </div>
                     <p class="text-gray-300 mb-4">
-                        Revolutionary IoT-powered water monitoring and automated feeding systems for modern aquaculture operations.
+                        Revolutionary IoT-powered water quality monitoring systems for modern aquaculture operations.
                     </p>
                     <div class="flex space-x-4">
                         <button class="border border-gray-600 text-gray-300 hover:bg-gray-800 px-4 py-2 rounded-lg transition-colors">
@@ -148,7 +139,6 @@
                     <h4 class="font-semibold mb-4">Products</h4>
                     <ul class="space-y-2 text-gray-300">
                         <li><a href="{{ url_for('water_monitoring') }}" class="hover:text-white transition-colors">Water Monitoring</a></li>
-                        <li><a href="{{ url_for('feeding_systems') }}" class="hover:text-white transition-colors">Feeding Systems</a></li>
                         <li><a href="{{ url_for('dashboard') }}" class="hover:text-white transition-colors">Dashboard</a></li>
                     </ul>
                 </div>
@@ -165,7 +155,7 @@
             </div>
 
             <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-                <p>&copy; 2025 AquaTech Smart Solutions. All rights reserved.</p>
+                <p>&copy; 2025 AquaTech Water Quality Monitoring. All rights reserved.</p>
             </div>
         </div>
     </footer>
