@@ -1,0 +1,339 @@
+/* Signup Page Specific Styles */
+ :root {
+            --primary-blue: #0891b2;
+            --secondary-blue: #0e7490;
+            --accent-aqua: #22d3ee;
+            --dark-blue: #164e63;
+        }
+.signup-card {
+    max-width: 450px;
+    margin: 0 auto;
+}
+
+.signup-form {
+    margin-bottom: 24px;
+}
+
+.signup-form .form-group {
+    margin-bottom: 20px;
+}
+
+/* Password Strength Indicator */
+.password-strength {
+    margin-top: 8px;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: all 0.3s ease;
+}
+
+.password-strength.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.strength-bar {
+    width: 100%;
+    height: 4px;
+    background: #e0e0e0;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.strength-fill {
+    height: 100%;
+    width: 0%;
+    transition: all 0.3s ease;
+    border-radius: 2px;
+}
+
+.strength-fill.weak {
+    width: 25%;
+    background: linear-gradient(90deg, #f44336, #e57373);
+}
+
+.strength-fill.fair {
+    width: 50%;
+    background: linear-gradient(90deg, #ff9800, #ffb74d);
+}
+
+.strength-fill.good {
+    width: 75%;
+    background: linear-gradient(90deg, #2196f3, #64b5f6);
+}
+
+.strength-fill.strong {
+    width: 100%;
+    background: linear-gradient(90deg, #4caf50, #81c784);
+}
+
+.strength-text {
+    font-size: 12px;
+    color: #757575;
+    font-weight: 400;
+    transition: color 0.3s ease;
+}
+
+.strength-text.weak {
+    color: #f44336;
+}
+
+.strength-text.fair {
+    color: #ff9800;
+}
+
+.strength-text.good {
+    color: #2196f3;
+}
+
+.strength-text.strong {
+    color: #4caf50;
+}
+
+/* Terms and Privacy Links */
+.terms-link,
+.privacy-link {
+    color: #1976d2;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.terms-link:hover,
+.privacy-link:hover {
+    color: #0d47a1;
+    text-decoration: underline;
+}
+
+/* Signin Link */
+.signin-link {
+    text-align: center;
+}
+
+.signin-link p {
+    color: #757575;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.signin-account {
+    color: #1976d2;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.signin-account:hover {
+    color: #0d47a1;
+}
+
+/* Enhanced form validation for signup */
+.signup-form .checkbox-label {
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.form-group.error .checkbox-label {
+    color: #d32f2f;
+}
+
+.form-group.error .checkbox-material {
+    border-color: #d32f2f;
+}
+
+/* Multiple password fields styling */
+.password-wrapper:nth-of-type(1) {
+    margin-bottom: 8px;
+}
+
+/* Enhanced button styling for signup */
+.signup-form .material-btn {
+    background:  linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.signup-form .material-btn:hover {
+    background: linear-gradient(135deg, #22d3ee 0%, #0891b2 100%);
+}
+
+.signup-form .material-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.signup-form .material-btn:hover::before {
+    left: 100%;
+}
+
+/* Form field animations */
+.form-group {
+    position: relative;
+}
+
+.form-group::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(76, 175, 80, 0.05);
+    border-radius: 8px;
+    opacity: 0;
+    transform: scale(0.95);
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.form-group.focused::before {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.form-group > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Social buttons for signup */
+.signup-form ~ .social-login .social-btn {
+   background: #ffffff;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    padding: 12px 16px;
+    color: #3c4043;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    position: relative;
+    overflow: hidden;
+    min-height: 48px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+
+}
+
+.signup-form ~ .social-login .social-btn:hover {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+/* Success message customization for signup */
+.signup-card .success-message .success-icon {
+    background: #4caf50;
+    box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+}
+
+/* Name fields styling */
+.signup-form .form-group:first-child .input-wrapper input:focus ~ .input-line,
+.signup-form .form-group:nth-child(2) .input-wrapper input:focus ~ .input-line {
+    background: #4caf50;
+}
+
+.signup-form .form-group:first-child .input-wrapper input:focus + label,
+.signup-form .form-group:nth-child(2) .input-wrapper input:focus + label {
+    color: #4caf50;
+}
+
+/* Responsive adjustments for signup */
+@media (max-width: 480px) {
+    .signup-card {
+        max-width: 100%;
+    }
+    
+    .signup-form .form-group {
+        margin-bottom: 18px;
+    }
+    
+    .checkbox-label {
+        font-size: 12px;
+    }
+    
+    .password-strength {
+        margin-top: 6px;
+    }
+    
+    .strength-bar {
+        height: 3px;
+    }
+}
+
+/* Loading states for signup */
+.signup-form.loading .form-group {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.signup-form.loading .material-btn {
+    pointer-events: none;
+}
+
+/* Animation for successful form submission */
+.signup-form.success {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+    transition: all 0.4s ease;
+    pointer-events: none;
+}
+
+.signin-link.success {
+    opacity: 0;
+    transform: translateY(-16px);
+    transition: all 0.4s ease 0.1s;
+    pointer-events: none;
+}
+
+.social-login.success {
+    opacity: 0;
+    transform: translateY(-16px);
+    transition: all 0.4s ease 0.2s;
+    pointer-events: none;
+}
+
+/* Flash Messages */
+.flash-messages {
+    margin-bottom: 20px;
+}
+
+.flash-message {
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.flash-error {
+    background: #fee;
+    border: 1px solid #fcc;
+    color: #c33;
+}
+
+.flash-success {
+    background: #efe;
+    border: 1px solid #cfc;
+    color: #3c3;
+}
+
+.flash-warning {
+    background: #ffe;
+    border: 1px solid #ffc;
+    color: #cc3;
+}
+
+.flash-info {
+    background: #eef;
+    border: 1px solid #ccf;
+    color: #33c;
+}
