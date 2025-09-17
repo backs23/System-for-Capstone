@@ -361,7 +361,7 @@ def homepage():
         },
         {
             'title': 'Multi-Parameter Sensing',
-            'description': 'pH, temperature, oxygen, turbidity, salinity, and ammonia monitoring',
+            'description': 'Temperature, oxygen, and ammonia monitoring with advanced sensors',
             'icon': 'activity'
         },
         {
@@ -374,12 +374,12 @@ def homepage():
     sensors = [
         {'name': 'Temperature', 'desc': 'Monitor water temperature', 'icon': 'thermometer'},
         {'name': 'Dissolved Oxygen', 'desc': 'Ensure adequate O2 levels', 'icon': 'activity'},
-        {'name': 'Ammonia Nitrogen', 'desc': 'Detect harmful compounds', 'icon': 'flask-conical'}
+        {'name': 'Ammonia', 'desc': 'Detect harmful compounds', 'icon': 'flask-conical'}
     ]
     
     return render_template('homepage.html', features=features, sensors=sensors)
 
-@app.route('/water-monitoring')
+@app.route('/water_monitoring')
 @login_required
 def water_monitoring():
     """Water monitoring page route"""

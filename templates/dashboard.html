@@ -3,7 +3,16 @@
 {% block title %}Dashboard - AquaTech{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-100 py-8">
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+</head>
+<body>
+    <div class="min-h-screen bg-gray-100 py-8">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Header -->
         <div class="mb-8">
@@ -12,81 +21,44 @@
         </div>
 
         <!-- Current Status Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-            <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          
+
+            <div class="bg-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-shadow duration-200">
                 <div class="flex items-center">
-                    <div class="p-2 bg-blue-100 rounded-lg">
-                        <i data-lucide="beaker" class="w-6 h-6 text-blue-600"></i>
+                    <div class="p-3 bg-red-100 rounded-full">
+                        <i data-lucide="thermometer" class="w-8 h-8 text-red-600"></i>
                     </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">pH Level</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ current_data.ph }}</p>
-                        <p class="text-xs text-green-600">Normal</p>
+                    <div class="ml-6">
+                        <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Temperature</p>
+                        <p class="text-3xl font-bold text-gray-900">{{ current_data.temperature }}°C</p>
+                        <p class="text-sm text-green-600 font-medium">Optimal Range</p>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-shadow duration-200">
                 <div class="flex items-center">
-                    <div class="p-2 bg-red-100 rounded-lg">
-                        <i data-lucide="thermometer" class="w-6 h-6 text-red-600"></i>
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <i data-lucide="activity" class="w-8 h-8 text-green-600"></i>
                     </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Temperature</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ current_data.temperature }}°C</p>
-                        <p class="text-xs text-green-600">Optimal</p>
+                    <div class="ml-6">
+                        <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Dissolved O2</p>
+                        <p class="text-3xl font-bold text-gray-900">{{ current_data.dissolved_oxygen }} <span class="text-lg text-gray-500">mg/L</span></p>
+                        <p class="text-sm text-green-600 font-medium">Good Level</p>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-shadow duration-200">
                 <div class="flex items-center">
-                    <div class="p-2 bg-green-100 rounded-lg">
-                        <i data-lucide="activity" class="w-6 h-6 text-green-600"></i>
+                    <div class="p-3 bg-orange-100 rounded-full">
+                        <i data-lucide="flask-conical" class="w-8 h-8 text-orange-600"></i>
                     </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Dissolved O2</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ current_data.dissolved_oxygen }}</p>
-                        <p class="text-xs text-green-600">Good</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex items-center">
-                    <div class="p-2 bg-purple-100 rounded-lg">
-                        <i data-lucide="eye" class="w-6 h-6 text-purple-600"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Turbidity</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ current_data.turbidity }}</p>
-                        <p class="text-xs text-green-600">Clear</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex items-center">
-                    <div class="p-2 bg-cyan-100 rounded-lg">
-                        <i data-lucide="waves" class="w-6 h-6 text-cyan-600"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Salinity</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ current_data.salinity }}</p>
-                        <p class="text-xs text-green-600">Normal</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex items-center">
-                    <div class="p-2 bg-orange-100 rounded-lg">
-                        <i data-lucide="flask-conical" class="w-6 h-6 text-orange-600"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Ammonia</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ current_data.ammonia }}</p>
-                        <p class="text-xs text-green-600">Safe</p>
+                    <div class="ml-6">
+                        <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Ammonia</p>
+                        <p class="text-3xl font-bold text-gray-900">{{ current_data.ammonia }} <span class="text-lg text-gray-500">mg/L</span></p>
+                        <p class="text-sm text-green-600 font-medium">Safe Level</p>
                     </div>
                 </div>
             </div>
@@ -181,7 +153,7 @@
                                     Complete
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">pH and DO sensors calibrated</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">DO sensors calibrated</td>
                         </tr>
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">06:00 AM</td>
@@ -191,7 +163,7 @@
                                     Resolved
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">pH level returned to normal</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Water quality returned to normal</td>
                         </tr>
                     </tbody>
                 </table>
@@ -203,62 +175,8 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    // Water Quality Chart
-    const ctx = document.getElementById('waterQualityChart').getContext('2d');
-    const chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: {{ chart_data.labels | safe }},
-            datasets: [{
-                label: 'pH Level',
-                data: {{ chart_data.ph_data | safe }},
-                borderColor: 'rgb(59, 130, 246)',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                tension: 0.1
-            }, {
-                label: 'Temperature (°C)',
-                data: {{ chart_data.temp_data | safe }},
-                borderColor: 'rgb(239, 68, 68)',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                tension: 0.1
-            }, {
-                label: 'Dissolved O2',
-                data: {{ chart_data.do_data | safe }},
-                borderColor: 'rgb(34, 197, 94)',
-                backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Water Quality Parameters'
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
-    });
+<script src="/static/js/dashboard.js"></script>
+</body>
+</html>
 
-    // Auto-refresh data every 30 seconds
-    setInterval(async function() {
-        try {
-            const response = await fetch('/api/sensor-data');
-            const data = await response.json();
-            
-            // Update status cards
-            document.querySelector('.text-2xl:contains("{{ current_data.ph }}")').textContent = data.ph;
-            // Add more update logic as needed
-        } catch (error) {
-            console.log('Failed to refresh data:', error);
-        }
-    }, 30000);
-</script>
 {% endblock %}
