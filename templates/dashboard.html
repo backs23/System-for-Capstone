@@ -15,19 +15,6 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="flex items-center">
-                    <div class="p-2 bg-blue-100 rounded-lg">
-                        <i data-lucide="beaker" class="w-6 h-6 text-blue-600"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">pH Level</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ current_data.ph }}</p>
-                        <p class="text-xs text-green-600">Normal</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex items-center">
                     <div class="p-2 bg-red-100 rounded-lg">
                         <i data-lucide="thermometer" class="w-6 h-6 text-red-600"></i>
                     </div>
@@ -48,32 +35,6 @@
                         <p class="text-sm font-medium text-gray-600">Dissolved O2</p>
                         <p class="text-2xl font-bold text-gray-900">{{ current_data.dissolved_oxygen }}</p>
                         <p class="text-xs text-green-600">Good</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex items-center">
-                    <div class="p-2 bg-purple-100 rounded-lg">
-                        <i data-lucide="eye" class="w-6 h-6 text-purple-600"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Turbidity</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ current_data.turbidity }}</p>
-                        <p class="text-xs text-green-600">Clear</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex items-center">
-                    <div class="p-2 bg-cyan-100 rounded-lg">
-                        <i data-lucide="waves" class="w-6 h-6 text-cyan-600"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Salinity</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ current_data.salinity }}</p>
-                        <p class="text-xs text-green-600">Normal</p>
                     </div>
                 </div>
             </div>
@@ -211,20 +172,20 @@
         data: {
             labels: {{ chart_data.labels | safe }},
             datasets: [{
-                label: 'pH Level',
-                data: {{ chart_data.ph_data | safe }},
+                label: 'Temperature (°C)',
+                data: {{ chart_data.temp_data | safe }},
                 borderColor: 'rgb(59, 130, 246)',
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 tension: 0.1
             }, {
-                label: 'Temperature (°C)',
-                data: {{ chart_data.temp_data | safe }},
+                label: 'Dissolved O2 (mg/L)',
+                data: {{ chart_data.do_data | safe }},
                 borderColor: 'rgb(239, 68, 68)',
                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
                 tension: 0.1
             }, {
-                label: 'Dissolved O2',
-                data: {{ chart_data.do_data | safe }},
+                label: 'Ammonia (mg/L)',
+                data: {{ chart_data.ammonia_data | safe }},
                 borderColor: 'rgb(34, 197, 94)',
                 backgroundColor: 'rgba(34, 197, 94, 0.1)',
                 tension: 0.1
@@ -254,7 +215,9 @@
             const data = await response.json();
             
             // Update status cards
-            document.querySelector('.text-2xl:contains("{{ current_data.ph }}")').textContent = data.ph;
+            document.querySelector('.text-2xl:contains("{{ current_data.temperature }}")').textContent = data.temperature;
+            document.querySelector('.text-2xl:contains("{{ current_data.dissolved_oxygen }}")').textContent = data.dissolved_oxygen;
+            document.querySelector('.text-2xl:contains("{{ current_data.ammonia }}")').textContent = data.ammonia;
             // Add more update logic as needed
         } catch (error) {
             console.log('Failed to refresh data:', error);

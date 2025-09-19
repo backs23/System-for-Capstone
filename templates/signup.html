@@ -122,6 +122,14 @@
                         </svg>
                     </div>
                 </button>
+                
+                <!-- Progress indicator -->
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Creating your account...</div>
+                </div>
             </form>
 
             <div class="divider">
@@ -173,6 +181,9 @@
                     <p>Welcome aboard! Redirecting to dashboard...</p>
                 </div>
             </div>
+            
+            <!-- Toast notification container -->
+            <div class="toast-container" id="toastContainer"></div>
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/signup.js') }}"></script>

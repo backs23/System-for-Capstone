@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 import random
 import re
 import os
-import json
 from functools import wraps
 from database import db
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -64,78 +63,12 @@ def validate_password(password):
         return False, "Password must contain at least one digit"
     return True, "Password is valid"
 
-# Fallback user management (when database is not available)
-USERS_FILE = 'fallback_users.json'
+def format_timestamp_for_display(timestamp):
+    """Format timestamp for display, handling timezone-aware timestamps"""
+    if hasattr(timestamp, 'tzinfo') and timestamp.tzinfo is not None:
+        timestamp = timestamp.replace(tzinfo=None)
+    return timestamp.strftime('%H:%M')
 
-def load_fallback_users():
-    """Load users from fallback JSON file"""
-    try:
-        if os.path.exists(USERS_FILE):
-            with open(USERS_FILE, 'r') as f:
-                return json.load(f)
-    except Exception as e:
-        print(f"Error loading fallback users: {e}")
-    return {}
-
-def save_fallback_users(users):
-    """Save users to fallback JSON file"""
-    try:
-        with open(USERS_FILE, 'w') as f:
-            json.dump(users, f, indent=2)
-        return True
-    except Exception as e:
-        print(f"Error saving fallback users: {e}")
-        return False
-
-def create_fallback_user(email, password, full_name):
-    """Create user in fallback storage"""
-    users = load_fallback_users()
-    
-    # Check if user already exists
-    if email.lower() in users:
-        return {'success': False, 'error': 'User with this email already exists'}
-    
-    # Create user record
-    user_data = {
-        'email': email.lower(),
-        'password_hash': generate_password_hash(password),
-        'full_name': full_name,
-        'created_at': datetime.now().isoformat(),
-        'user_id': f"user_{len(users) + 1}"
-    }
-    
-    users[email.lower()] = user_data
-    
-    if save_fallback_users(users):
-        return {
-            'success': True,
-            'user_id': user_data['user_id'],
-            'message': 'Account created successfully'
-        }
-    else:
-        return {'success': False, 'error': 'Failed to save user data'}
-
-def authenticate_fallback_user(email, password):
-    """Authenticate user from fallback storage"""
-    users = load_fallback_users()
-    
-    user_data = users.get(email.lower())
-    if not user_data:
-        return {'success': False, 'error': 'Invalid email or password'}
-    
-    if check_password_hash(user_data['password_hash'], password):
-        return {
-            'success': True,
-            'user': {
-                'user_id': user_data['user_id'],
-                'email': user_data['email'],
-                'full_name': user_data['full_name'],
-                'role': 'user'
-            },
-            'message': 'Login successful'
-        }
-    else:
-        return {'success': False, 'error': 'Invalid email or password'}
 
 # Fallback function for when database is not available
 def generate_fallback_sensor_data():
@@ -162,15 +95,41 @@ def login():
         print(f"Login attempt - Form data: {dict(request.form)}")
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '')
+        remember = request.form.get('remember') == 'on'
+        
+        # Check if this is an AJAX request
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
         
         # Basic validation
         if not email or not password:
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'Please fill in all fields'})
             flash('Please fill in all fields', 'error')
             return render_template('login.html')
         
         if not validate_email(email):
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'Please enter a valid email address'})
             flash('Please enter a valid email address', 'error')
             return render_template('login.html')
+        
+        # Check demo credentials first (for easy testing)
+        if email == DEMO_EMAIL and password == DEMO_PASSWORD:
+            session['user_id'] = 'demo_user'
+            session['user_email'] = DEMO_EMAIL
+            session['user_name'] = 'Demo User'
+            session['user_role'] = 'demo'
+            
+            if is_ajax:
+                return jsonify({
+                    'success': True, 
+                    'message': 'Welcome to AquaTech Demo!',
+                    'redirect': url_for('homepage')
+                })
+            
+            flash('Welcome to AquaTech Demo!', 'success')
+            return redirect(url_for('homepage'))
         
         # Try authentication with Firebase database, fallback if no database
         if db.is_connected:
@@ -182,33 +141,29 @@ def login():
                 session['user_name'] = result['user']['full_name']
                 session['user_role'] = result['user']['role']
                 
+                # Set session to permanent if remember me is checked
+                if remember:
+                    session.permanent = True
+                    app.permanent_session_lifetime = timedelta(days=30)
+                
+                if is_ajax:
+                    return jsonify({
+                        'success': True, 
+                        'message': f"Welcome back, {result['user']['full_name']}!",
+                        'redirect': url_for('homepage')
+                    })
+                
                 flash(f"Welcome back, {result['user']['full_name']}!", 'success')
                 return redirect(url_for('homepage'))
             else:
+                if is_ajax:
+                    return jsonify({'success': False, 'message': result['error']})
                 flash(result['error'], 'error')
         else:
-            # Fallback: Try fallback user authentication first
-            fallback_result = authenticate_fallback_user(email, password)
-            if fallback_result['success']:
-                # Store user info in session
-                session['user_id'] = fallback_result['user']['user_id']
-                session['user_email'] = fallback_result['user']['email']
-                session['user_name'] = fallback_result['user']['full_name']
-                session['user_role'] = fallback_result['user']['role']
-                
-                flash(f"Welcome back, {fallback_result['user']['full_name']}!", 'success')
-                return redirect(url_for('homepage'))
-            elif email == DEMO_EMAIL and password == DEMO_PASSWORD:
-                # Demo login as last resort
-                session['user_id'] = 'demo_user'
-                session['user_email'] = DEMO_EMAIL
-                session['user_name'] = 'Demo User'
-                session['user_role'] = 'demo'
-                
-                flash('Welcome to AquaTech Demo!', 'success')
-                return redirect(url_for('homepage'))
-            else:
-                flash('Invalid email or password. Or try demo login: demo@aquatech.com / Demo123!', 'error')
+            # Database not available - show error
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'Database not available. Please try demo login: demo@aquatech.com / Demo123!'})
+            flash('Database not available. Please try demo login: demo@aquatech.com / Demo123!', 'error')
     
     return render_template('login.html')
 
@@ -225,23 +180,41 @@ def signup():
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
+        terms = request.form.get('terms') == 'on'
+        
+        # Check if this is an AJAX request
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         
         # Basic validation
         if not all([full_name, email, password, confirm_password]):
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'Please fill in all required fields'})
             flash('Please fill in all required fields', 'error')
             return render_template('signup.html')
         
         if not validate_email(email):
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'Please enter a valid email address'})
             flash('Please enter a valid email address', 'error')
             return render_template('signup.html')
         
         if password != confirm_password:
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'Passwords do not match'})
             flash('Passwords do not match', 'error')
+            return render_template('signup.html')
+        
+        if not terms:
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'You must agree to the terms and conditions'})
+            flash('You must agree to the terms and conditions', 'error')
             return render_template('signup.html')
         
         # Validate password strength
         is_valid, message = validate_password(password)
         if not is_valid:
+            if is_ajax:
+                return jsonify({'success': False, 'message': message})
             flash(message, 'error')
             return render_template('signup.html')
         
@@ -249,19 +222,23 @@ def signup():
         if db.is_connected:
             result = db.create_user(email, password, full_name)
             if result['success']:
+                if is_ajax:
+                    return jsonify({
+                        'success': True, 
+                        'message': 'Account created successfully! Please log in.',
+                        'redirect': url_for('login')
+                    })
                 flash('Account created successfully! Please log in.', 'success')
                 return redirect(url_for('login'))
             else:
+                if is_ajax:
+                    return jsonify({'success': False, 'message': result['error']})
                 flash(result['error'], 'error')
         else:
-            # Fallback: Create user in local storage
-            print("Database not available, using fallback user creation")
-            result = create_fallback_user(email, password, full_name)
-            if result['success']:
-                flash('Account created successfully! You can now log in.', 'success')
-                return redirect(url_for('login'))
-            else:
-                flash(result['error'], 'error')
+            # Database not available - show error
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'Database not available. Please try demo login: demo@aquatech.com / Demo123!'})
+            flash('Database not available. Please try demo login: demo@aquatech.com / Demo123!', 'error')
     
     return render_template('signup.html')
 
@@ -389,14 +366,17 @@ def water_monitoring():
         if not current_data:
             current_data = generate_fallback_sensor_data()
         else:
-            # Format timestamp for display
-            current_data['timestamp'] = current_data['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+            # Format timestamp for display - handle timezone-aware timestamps
+            timestamp = current_data['timestamp']
+            if hasattr(timestamp, 'tzinfo') and timestamp.tzinfo is not None:
+                timestamp = timestamp.replace(tzinfo=None)
+            current_data['timestamp'] = timestamp.strftime('%Y-%m-%d %H:%M:%S')
         
         # Get historical data from database
         historical_data = db.get_historical_sensor_data(24)
         # Format for chart display
         for item in historical_data:
-            item['time'] = item['timestamp'].strftime('%H:%M')
+            item['time'] = format_timestamp_for_display(item['timestamp'])
     else:
         # Fallback to generated data
         current_data = generate_fallback_sensor_data()
@@ -405,7 +385,7 @@ def water_monitoring():
             timestamp = datetime.now() - timedelta(hours=i)
             historical_data.append({
                 'time': timestamp.strftime('%H:%M'),
-                'ammonia': round(random.uniform(0, 5), 2),
+                'ammonia': round(random.uniform(0, 5), 3),
                 'temperature': round(random.uniform(20, 30), 1),
                 'dissolved_oxygen': round(random.uniform(4, 12), 2),
             })
@@ -425,14 +405,18 @@ def dashboard():
         if not current_data:
             current_data = generate_fallback_sensor_data()
         else:
-            current_data['timestamp'] = current_data['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+            # Format timestamp for display - handle timezone-aware timestamps
+            timestamp = current_data['timestamp']
+            if hasattr(timestamp, 'tzinfo') and timestamp.tzinfo is not None:
+                timestamp = timestamp.replace(tzinfo=None)
+            current_data['timestamp'] = timestamp.strftime('%Y-%m-%d %H:%M:%S')
         
         # Get recent sensor data for charts (last 12 hours)
         historical_data = db.get_historical_sensor_data(12)
         
         if historical_data:
             chart_data = {
-                'labels': [item['timestamp'].strftime('%H:%M') for item in historical_data],
+                'labels': [format_timestamp_for_display(item['timestamp']) for item in historical_data],
                 'ammonia_data': [item['ammonia'] for item in historical_data],
                 'temp_data': [item['temperature'] for item in historical_data],
                 'do_data': [item['dissolved_oxygen'] for item in historical_data]
@@ -441,7 +425,7 @@ def dashboard():
             # Fallback chart data
             chart_data = {
                 'labels': [(datetime.now() - timedelta(hours=i)).strftime('%H:%M') for i in range(11, -1, -1)],
-                'ammonia_data': [round(random.uniform(0, 5), 2) for _ in range(12)],
+                'ammonia_data': [round(random.uniform(0, 5), 3) for _ in range(12)],
                 'temp_data': [round(random.uniform(20, 30), 1) for _ in range(12)],
                 'do_data': [round(random.uniform(4, 12), 2) for _ in range(12)]
             }
@@ -450,7 +434,18 @@ def dashboard():
         alerts_data = db.get_recent_alerts(3)
         alerts = []
         for alert in alerts_data:
-            time_diff = datetime.now() - alert['timestamp']
+            # Handle timezone-aware vs timezone-naive datetime comparison
+            alert_timestamp = alert['timestamp']
+            current_time = datetime.now()
+            
+            # If alert timestamp is timezone-aware, make current_time timezone-aware too
+            if hasattr(alert_timestamp, 'tzinfo') and alert_timestamp.tzinfo is not None:
+                # For timezone-aware timestamps, we need to make current_time timezone-aware
+                # Since we don't have timezone info, we'll treat the alert timestamp as naive
+                if hasattr(alert_timestamp, 'replace'):
+                    alert_timestamp = alert_timestamp.replace(tzinfo=None)
+            
+            time_diff = current_time - alert_timestamp
             if time_diff.days > 0:
                 time_str = f"{time_diff.days} days ago"
             elif time_diff.seconds > 3600:
@@ -508,6 +503,7 @@ def api_sensor_data():
     
     # Fallback to generated data
     return jsonify(generate_fallback_sensor_data())
+
 
 # Clean up database connection when Flask is shutting down
 @app.teardown_appcontext

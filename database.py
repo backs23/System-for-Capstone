@@ -148,42 +148,6 @@ class AquaTechFirebaseDB:
             print(f"❌ Error authenticating user: {e}")
             return {"success": False, "error": "Authentication failed"}
     
-    def get_user_by_email(self, email):
-        """Get user by email address"""
-        if not self.is_connected:
-            return None
-        
-        try:
-            users_collection = self.db.collection('users')
-            user_docs = users_collection.where('email', '==', email.lower().strip()).limit(1).get()
-            
-            if len(user_docs) > 0:
-                user_doc = user_docs[0]
-                user_data = user_doc.to_dict()
-                user_data['user_id'] = user_doc.id
-                return user_data
-            return None
-            
-        except Exception as e:
-            print(f"❌ Error fetching user: {e}")
-            return None
-    
-    def get_user_by_id(self, user_id):
-        """Get user by ID"""
-        if not self.is_connected:
-            return None
-        
-        try:
-            user_doc = self.db.collection('users').document(user_id).get()
-            if user_doc.exists:
-                user_data = user_doc.to_dict()
-                user_data['user_id'] = user_doc.id
-                return user_data
-            return None
-            
-        except Exception as e:
-            print(f"❌ Error fetching user by ID: {e}")
-            return None
     
     # Password Reset Methods
     def create_password_reset_token(self, email):
@@ -388,7 +352,7 @@ class AquaTechFirebaseDB:
             print(f"⚠️ Error logging user activity: {e}")
     
     # Fallback Methods (when Firebase is not available)
-    def _create_fallback_user(self, email, password, full_name, company=None):
+    def _create_fallback_user(self, email, password, full_name):
         """Create user in fallback JSON storage"""
         import json
         import os
@@ -488,20 +452,17 @@ class AquaTechFirebaseDB:
             {
                 'timestamp': datetime.now() - timedelta(minutes=10),
                 'type': 'warning',
-                'message': 'Ammonia level approaching lower threshold',
-                'sensor_id': 'SENSOR_001'
+                'message': 'Ammonia level approaching lower threshold'
             },
             {
                 'timestamp': datetime.now() - timedelta(hours=2),
                 'type': 'info',
-                'message': 'Temperature sensor calibration completed',
-                'sensor_id': 'SENSOR_002'
+                'message': 'Temperature sensor calibration completed'
             },
             {
                 'timestamp': datetime.now() - timedelta(hours=4),
                 'type': 'success',
-                'message': 'Water quality parameters optimal',
-                'sensor_id': 'SENSOR_001'
+                'message': 'Water quality parameters optimal'
             }
         ]
     

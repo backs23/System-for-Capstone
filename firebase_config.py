@@ -4,7 +4,7 @@ Firebase Configuration and Initialization
 import os
 import json
 import firebase_admin
-from firebase_admin import credentials, firestore, auth
+from firebase_admin import credentials, firestore
 from datetime import datetime
 
 class FirebaseConfig:
@@ -104,9 +104,7 @@ class FirebaseConfig:
                     'timestamp': timestamp,
                     'temperature': round(random.uniform(20, 30), 1),
                     'dissolved_oxygen': round(random.uniform(4, 12), 2),
-                    'ammonia': round(random.uniform(0, 5), 3),
-                    'location': 'Tank A',
-                    'sensor_id': 'SENSOR_001'
+                    'ammonia': round(random.uniform(0, 5), 3)
                 }
                 
                 sensor_collection.add(sample_data)
@@ -117,62 +115,23 @@ class FirebaseConfig:
                 {
                     'timestamp': datetime.now() - timedelta(minutes=10),
                     'type': 'warning',
-                    'message': 'Ammonia level approaching lower threshold',
-                    'sensor_id': 'SENSOR_001',
-                    'value': 2.5,
-                    'threshold': 5.0,
-                    'acknowledged': False
+                    'message': 'Ammonia level approaching lower threshold'
                 },
                 {
                     'timestamp': datetime.now() - timedelta(hours=2),
                     'type': 'info',
-                    'message': 'Temperature sensor calibration completed',
-                    'sensor_id': 'SENSOR_002',
-                    'acknowledged': True
+                    'message': 'Temperature sensor calibration completed'
                 },
                 {
                     'timestamp': datetime.now() - timedelta(hours=4),
                     'type': 'success',
-                    'message': 'Water quality parameters optimal',
-                    'sensor_id': 'SENSOR_001',
-                    'acknowledged': True
+                    'message': 'Water quality parameters optimal'
                 }
             ]
             
             for alert in sample_alerts:
                 alerts_collection.add(alert)
             
-            # Create system settings
-            settings_collection = self.db.collection('system_settings')
-            system_settings = {
-                'tank_settings': {
-                    'tank_a': {
-                        'name': 'Tank A - Main Production',
-                        'capacity_liters': 10000,
-                        'fish_species': 'Atlantic Salmon',
-                        'fish_count': 500,
-                        'optimal_ammonia_range': [0, 1.0],
-                        'optimal_temp_range': [18, 24],
-                        'optimal_do_range': [6, 12]
-                    }
-                },
-                'alert_thresholds': {
-                    'ammonia_min': 0,
-                    'ammonia_max': 1.0,
-                    'temp_min': 18,
-                    'temp_max': 30,
-                    'do_min': 4,
-                    'do_max': 12},
-                'system_info': {
-                    'installation_date': datetime(2024, 1, 15),
-                    'last_maintenance': datetime.now() - timedelta(days=3),
-                    'next_maintenance': datetime.now() + timedelta(days=27),
-                    'firmware_version': 'v2.1.3'
-                },
-                'created_at': datetime.now()
-            }
-            
-            settings_collection.add(system_settings)
             
             print("✅ Sample data created successfully")
             return True
