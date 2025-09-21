@@ -309,12 +309,12 @@ class FirebaseConfig:
                 return True
             
             print("📊 Creating sample sensor data...")
-            from datetime import timedelta
+            from datetime import timedelta, timezone
             import random
             
             # Generate sample data for the past 24 hours
             for hours_ago in range(24):
-                timestamp = datetime.now() - timedelta(hours=hours_ago)
+                timestamp = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
                 
                 sample_data = {
                     'timestamp': timestamp,
@@ -331,7 +331,7 @@ class FirebaseConfig:
             alerts_collection = self.db.collection('alerts')
             sample_alerts = [
                 {
-                    'timestamp': datetime.now() - timedelta(minutes=10),
+                    'timestamp': datetime.now(timezone.utc) - timedelta(minutes=10),
                     'type': 'warning',
                     'message': 'Ammonia level approaching lower threshold',
                     'sensor_id': 'SENSOR_001',
@@ -340,14 +340,14 @@ class FirebaseConfig:
                     'acknowledged': False
                 },
                 {
-                    'timestamp': datetime.now() - timedelta(hours=2),
+                    'timestamp': datetime.now(timezone.utc) - timedelta(hours=2),
                     'type': 'info',
                     'message': 'Temperature sensor calibration completed',
                     'sensor_id': 'SENSOR_002',
                     'acknowledged': True
                 },
                 {
-                    'timestamp': datetime.now() - timedelta(hours=4),
+                    'timestamp': datetime.now(timezone.utc) - timedelta(hours=4),
                     'type': 'success',
                     'message': 'Water quality parameters optimal',
                     'sensor_id': 'SENSOR_001',
@@ -381,11 +381,11 @@ class FirebaseConfig:
                     'do_max': 12},
                 'system_info': {
                     'installation_date': datetime(2024, 1, 15),
-                    'last_maintenance': datetime.now() - timedelta(days=3),
-                    'next_maintenance': datetime.now() + timedelta(days=27),
+                    'last_maintenance': datetime.now(timezone.utc) - timedelta(days=3),
+                    'next_maintenance': datetime.now(timezone.utc) + timedelta(days=27),
                     'firmware_version': 'v2.1.3'
                 },
-                'created_at': datetime.now()
+                'created_at': datetime.now(timezone.utc)
             }
             
             settings_collection.add(system_settings)

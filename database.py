@@ -3,7 +3,7 @@ Firebase Database Implementation for AquaTech
 Replaces MongoDB with Firebase Firestore
 """
 from firebase_config import firebase_config
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 import secrets
 import json
@@ -71,7 +71,7 @@ class AquaTechFirebaseDB:
                 'email': email.lower(),
                 'full_name': full_name,
                 'company': company,
-                'created_at': datetime.now(),
+                'created_at': datetime.now(timezone.utc),
                 'last_login': None,
                 'is_active': True,
                 'email_verified': False,
@@ -92,7 +92,7 @@ class AquaTechFirebaseDB:
                 "email": email,
                 "full_name": full_name,
                 "auth_provider": "email_password",
-                "creation_time": datetime.now()
+                "creation_time": datetime.now(timezone.utc)
             })
             
             return {
@@ -155,13 +155,13 @@ class AquaTechFirebaseDB:
                 
                 # Update last login time
                 users_collection.document(user_id).update({
-                    'last_login': datetime.now()
+                    'last_login': datetime.now(timezone.utc)
                 })
                 
                 # Log successful login
                 self._log_user_activity(user_id, "login_successful", {
                     "email": email,
-                    "login_time": datetime.now(),
+                    "login_time": datetime.now(timezone.utc),
                     "auth_provider": "google"
                 })
                 
@@ -202,13 +202,13 @@ class AquaTechFirebaseDB:
             
             # Update last login time
             users_collection.document(user_id).update({
-                'last_login': datetime.now()
+                'last_login': datetime.now(timezone.utc)
             })
             
             # Log successful login
             self._log_user_activity(user_id, "login_successful", {
                 "email": email,
-                "login_time": datetime.now(),
+                "login_time": datetime.now(timezone.utc),
                 "auth_provider": "email_password"
             })
             
@@ -380,7 +380,7 @@ class AquaTechFirebaseDB:
             token_data = token_doc.to_dict()
             
             # Check if token has expired
-            if datetime.now() > token_data['expires_at']:
+            if datetime.now(timezone.utc) > token_data['expires_at']:
                 return {"success": False, "error": "Token has expired"}
             
             return {
@@ -426,7 +426,7 @@ class AquaTechFirebaseDB:
                         # If Firebase update fails, try to update our internal record for backward compatibility
                         user_doc.reference.update({
                             "password_hash": generate_password_hash(new_password),
-                            "updated_at": datetime.now()
+                            "updated_at": datetime.now(timezone.utc)
                         })
                     
                     # Mark token as used if it exists in our system
@@ -435,7 +435,7 @@ class AquaTechFirebaseDB:
                     if len(token_docs) > 0:
                         token_docs[0].reference.update({
                             "used": True,
-                            "used_at": datetime.now()
+                            "used_at": datetime.now(timezone.utc)
                         })
                     
                     # Log password reset
@@ -481,7 +481,8 @@ class AquaTechFirebaseDB:
             return self._generate_fallback_historical_data(hours)
         
         try:
-            start_time = datetime.now() - timedelta(hours=hours)
+            # Use timezone-aware datetime with UTC to prevent type errors
+            start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
             
             sensor_collection = self.db.collection('sensor_data')
             docs = sensor_collection.where('timestamp', '>=', start_time).order_by('timestamp').get()
@@ -523,7 +524,7 @@ class AquaTechFirebaseDB:
             return None
         
         try:
-            sensor_data['timestamp'] = datetime.now()
+            sensor_data['timestamp'] = datetime.now(timezone.utc)
             doc_ref = self.db.collection('sensor_data').add(sensor_data)
             return doc_ref[1].id
             
@@ -541,7 +542,7 @@ class AquaTechFirebaseDB:
             activity_log = {
                 "user_id": user_id,
                 "activity_type": activity_type,
-                "timestamp": datetime.now(),
+                "timestamp": datetime.now(timezone.utc),
                 "details": details or {},
                 "ip_address": None  # Could be added from request context
             }
@@ -583,8 +584,8 @@ class AquaTechFirebaseDB:
             if user_doc.exists:
                 # User exists, update last login and any profile changes
                 update_data = {
-                    "last_login": datetime.now(),
-                    "updated_at": datetime.now()
+                    "last_login": datetime.now(timezone.utc),
+                    "updated_at": datetime.now(timezone.utc)
                 }
                 
                 # Update profile information if it's changed
@@ -615,9 +616,9 @@ class AquaTechFirebaseDB:
                 "display_name": profile_info.get("displayName", email) if profile_info else email,
                 "profile_picture": profile_info.get("photoURL", "") if profile_info else "",
                 "auth_provider": "google",
-                "created_at": datetime.now(),
-                "last_login": datetime.now(),
-                "updated_at": datetime.now(),
+                "created_at": datetime.now(timezone.utc),
+                "last_login": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
                 "is_active": True,
                 "profile": {
                     "role": "user",
@@ -663,7 +664,7 @@ class AquaTechFirebaseDB:
             'email': email.lower(),
             'password_hash': generate_password_hash(password),
             'full_name': full_name,
-            'created_at': datetime.now().isoformat(),
+            'created_at': datetime.now(timezone.utc).isoformat(),
             'user_id': f"user_{len(users) + 1}"
         }
         
@@ -736,14 +737,14 @@ class AquaTechFirebaseDB:
             'temperature': round(random.uniform(20, 30), 1),
             'dissolved_oxygen': round(random.uniform(4, 12), 2),
             'ammonia': round(random.uniform(0, 5), 3),
-            'timestamp': datetime.now()
+            'timestamp': datetime.now(timezone.utc)
         }
     
     def _generate_fallback_historical_data(self, hours):
         """Generate fallback historical data"""
         data = []
         for i in range(hours):
-            timestamp = datetime.now() - timedelta(hours=i)
+            timestamp = datetime.now(timezone.utc) - timedelta(hours=i)
             data.append({
                 'timestamp': timestamp,
                 'temperature': round(random.uniform(20, 30), 1),
@@ -756,19 +757,19 @@ class AquaTechFirebaseDB:
         """Generate fallback alerts"""
         return [
             {
-                'timestamp': datetime.now() - timedelta(minutes=10),
+                'timestamp': datetime.now(timezone.utc) - timedelta(minutes=10),
                 'type': 'warning',
                 'message': 'Ammonia level approaching lower threshold',
                 'sensor_id': 'SENSOR_001'
             },
             {
-                'timestamp': datetime.now() - timedelta(hours=2),
+                'timestamp': datetime.now(timezone.utc) - timedelta(hours=2),
                 'type': 'info',
                 'message': 'Temperature sensor calibration completed',
                 'sensor_id': 'SENSOR_002'
             },
             {
-                'timestamp': datetime.now() - timedelta(hours=4),
+                'timestamp': datetime.now(timezone.utc) - timedelta(hours=4),
                 'type': 'success',
                 'message': 'Water quality parameters optimal',
                 'sensor_id': 'SENSOR_001'

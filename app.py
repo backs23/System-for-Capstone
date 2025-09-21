@@ -1,6 +1,6 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash, session
 from flask_wtf.csrf import CSRFProtect, CSRFError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 import re
 import os
@@ -115,7 +115,7 @@ def create_fallback_user(email, password, full_name):
         'email': email.lower(),
         'password_hash': generate_password_hash(password),
         'full_name': full_name,
-        'created_at': datetime.now().isoformat(),
+        'created_at': datetime.now(timezone.utc).isoformat(),
         'user_id': f"user_{len(users) + 1}"
     }
     
@@ -159,7 +159,7 @@ def generate_fallback_sensor_data():
         'temperature': round(random.uniform(20, 30), 1),
         'dissolved_oxygen': round(random.uniform(4, 12), 2),
         'ammonia': round(random.uniform(0, 5), 3),
-        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        'timestamp': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
     }
 
 # Demo credentials (move to environment variables in production)
@@ -565,7 +565,7 @@ def water_monitoring():
         current_data = generate_fallback_sensor_data()
         historical_data = []
         for i in range(24):  # Last 24 hours
-            timestamp = datetime.now() - timedelta(hours=i)
+            timestamp = datetime.now(timezone.utc) - timedelta(hours=i)
             historical_data.append({
                 'time': timestamp.strftime('%H:%M'),
                 'ammonia': round(random.uniform(0, 5), 2),
@@ -603,7 +603,7 @@ def dashboard():
         else:
             # Fallback chart data
             chart_data = {
-                'labels': [(datetime.now() - timedelta(hours=i)).strftime('%H:%M') for i in range(11, -1, -1)],
+                'labels': [(datetime.now(timezone.utc) - timedelta(hours=i)).strftime('%H:%M') for i in range(11, -1, -1)],
                 'ammonia_data': [round(random.uniform(0, 5), 2) for _ in range(12)],
                 'temp_data': [round(random.uniform(20, 30), 1) for _ in range(12)],
                 'do_data': [round(random.uniform(4, 12), 2) for _ in range(12)]
@@ -613,7 +613,7 @@ def dashboard():
         alerts_data = db.get_recent_alerts(3)
         alerts = []
         for alert in alerts_data:
-            time_diff = datetime.now() - alert['timestamp']
+            time_diff = datetime.now(timezone.utc) - alert['timestamp']
             if time_diff.days > 0:
                 time_str = f"{time_diff.days} days ago"
             elif time_diff.seconds > 3600:
@@ -630,7 +630,7 @@ def dashboard():
         # Fallback data
         current_data = generate_fallback_sensor_data()
         chart_data = {
-            'labels': [(datetime.now() - timedelta(hours=i)).strftime('%H:%M') for i in range(11, -1, -1)],
+                'labels': [(datetime.now(timezone.utc) - timedelta(hours=i)).strftime('%H:%M') for i in range(11, -1, -1)],
             'ammonia_data': [round(random.uniform(0, 5), 2) for _ in range(12)],
             'temp_data': [round(random.uniform(20, 30), 1) for _ in range(12)],
             'do_data': [round(random.uniform(4, 12), 2) for _ in range(12)]
