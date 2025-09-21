@@ -17,6 +17,58 @@ class MaterialSignupForm {
         this.init();
     }
     
+    // Utility function to check if Firebase is properly configured
+    isFirebaseConfigured() {
+        // First check if Firebase is initialized
+        if (!window.firebase || !firebase.auth || !firebase.apps || firebase.apps.length === 0) {
+            console.warn('Firebase is not initialized');
+            return false;
+        }
+        
+        try {
+            // Get the Firebase configuration
+            const config = firebase.app().options;
+            
+            // Check if API key exists and matches the typical Firebase API key pattern
+            // Firebase API keys usually start with 'AIzaSy'
+            const apiKeyRegex = /^AIzaSy[a-zA-Z0-9-_]{35,}$/;
+            const hasValidApiKey = config.apiKey && apiKeyRegex.test(config.apiKey);
+            
+            // Check if authDomain is properly formatted
+            const hasValidAuthDomain = config.authDomain && config.authDomain.includes('.');
+            
+            // Check if projectId exists
+            const hasProjectId = !!config.projectId;
+            
+            // Return true only if all required configuration elements are valid
+            const isConfigured = hasValidApiKey && hasValidAuthDomain && hasProjectId;
+            
+            if (!isConfigured) {
+                console.warn('Invalid Firebase configuration:', {
+                    hasValidApiKey,
+                    hasValidAuthDomain,
+                    hasProjectId,
+                    apiKey: config.apiKey
+                });
+            }
+            
+            return isConfigured;
+        } catch (error) {
+            console.error('Error checking Firebase configuration:', error);
+            return false;
+        }
+    }
+    
+    // Show friendly error message for Firebase configuration issues
+    showFirebaseConfigError() {
+        const errorMessage = 'Firebase configuration error: Please check your API key. ' +
+                            'Visit the Firebase Console to get valid credentials and update the firebase_web_config.json file.';
+        
+        this.form.querySelector('.error-message').textContent = errorMessage;
+        this.form.querySelector('.error-message').classList.remove('hidden');
+        console.error(errorMessage);
+    }
+    
     init() {
         this.bindEvents();
         this.setupPasswordToggles();
@@ -440,8 +492,8 @@ class MaterialSignupForm {
         this.setLoading(true);
         
         try {
-            // Check if Firebase is available
-            if (window.firebase && window.firebase.auth) {
+            // Check if Firebase is properly configured
+            if (this.isFirebaseConfigured()) {
                 // Use Firebase authentication to create account
                 const userCredential = await window.firebase.auth().createUserWithEmailAndPassword(
                     this.emailInput.value.trim(),
@@ -458,8 +510,8 @@ class MaterialSignupForm {
                 // Show success state
                 this.showSuccess();
             } else {
-                // If Firebase is not available, submit the form normally
-                console.log('Firebase not available, submitting form normally');
+                // If Firebase is not properly configured, submit the form normally
+                console.log('Firebase not properly configured, submitting form normally');
                 this.form.submit();
             }
         } catch (error) {
@@ -471,6 +523,9 @@ class MaterialSignupForm {
                 errorMessage = 'Invalid email address';
             } else if (error.code === 'auth/weak-password') {
                 errorMessage = 'Password is too weak';
+            } else if (error.code === 'auth/api-key-not-valid') {
+                errorMessage = 'Firebase configuration issue. Please contact support.';
+                this.showFirebaseConfigError();
             }
             this.showError('email', errorMessage);
         } finally {
@@ -486,10 +541,11 @@ class MaterialSignupForm {
         
         try {
             if (provider.toLowerCase() === 'google') {
-                // Check if Firebase is available
-                if (!window.firebase || !firebase.auth) {
-                    console.error('Firebase SDK not loaded');
+                // Check if Firebase is properly configured
+                if (!this.isFirebaseConfigured()) {
+                    console.error('Firebase SDK not properly configured');
                     alert('Firebase authentication is not available. Please try again later.');
+                    this.showFirebaseConfigError();
                     return;
                 }
                 

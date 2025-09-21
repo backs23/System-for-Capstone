@@ -176,6 +176,25 @@
             </div>
         </div>
     </div>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    
+    <!-- Initialize Firebase -->
+    <script>
+        // Firebase configuration from server
+        const firebaseConfig = {{ firebase_web_config|tojson|safe }};
+        
+        // Initialize Firebase
+        if (firebaseConfig && firebaseConfig.apiKey) {
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+            console.log('Firebase initialized successfully');
+        } else {
+            console.warn('Firebase configuration not available');
+        }
+    </script>
+    
     <script src="{{ url_for('static', filename='js/signup.js') }}"></script>
 </body>
 

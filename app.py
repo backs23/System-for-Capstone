@@ -28,7 +28,10 @@ firebase_config = FirebaseConfig()
 
 # Add Firebase web config to all templates
 def inject_firebase_config():
-    return {'firebase_web_config': firebase_config.get_web_config_json()}
+    # Return the dictionary directly for the templates to use with |tojson filter
+    return {
+        'firebase_web_config': firebase_config.get_web_config_dict()
+    }
 
 app.context_processor(inject_firebase_config)
 
@@ -181,12 +184,13 @@ def login():
             try:
                 # Parse JSON payload
                 data = request.get_json()
-                id_token = data.get('google_id_token')
+                google_id_token = data.get('google_id_token')
+                firebase_id_token = data.get('firebase_id_token')
                 
-                if id_token:
+                if google_id_token:
                     # Process Google sign-in
                     if db.is_connected:
-                        result = db.authenticate_user(None, None, google_id_token=id_token)
+                        result = db.authenticate_user(None, None, google_id_token=google_id_token)
                         if result['success']:
                             # Store user info in session
                             session['user_id'] = result['user']['user_id']
@@ -200,6 +204,32 @@ def login():
                             return jsonify({'success': False, 'error': result['error']}), 401
                     else:
                         return jsonify({'success': False, 'error': 'Database not available. Google authentication is not available in offline mode.'}), 503
+                elif firebase_id_token:
+                    # Process regular Firebase authentication token
+                    if db.is_connected:
+                        # For regular Firebase auth, we need to verify the token and get user info
+                        try:
+                            decoded_token = firebase_config.get_auth_client().verify_id_token(firebase_id_token)
+                            user_id = decoded_token['uid']
+                            
+                            # Get user details from Firestore
+                            user_doc = db.db.collection('users').document(user_id).get()
+                            if user_doc.exists:
+                                user_data = user_doc.to_dict()
+                                # Store user info in session
+                                session['user_id'] = user_id
+                                session['user_email'] = user_data.get('email')
+                                session['user_name'] = user_data.get('full_name')
+                                session['user_role'] = user_data.get('role', 'user')
+                                session['auth_provider'] = 'email'
+                                
+                                return jsonify({'success': True, 'message': 'Login successful'})
+                            else:
+                                return jsonify({'success': False, 'error': 'User not found'}), 404
+                        except Exception as e:
+                            return jsonify({'success': False, 'error': str(e)}), 401
+                    else:
+                        return jsonify({'success': False, 'error': 'Database not available'}), 503
                 else:
                     # Handle other JSON login cases if needed in the future
                     return jsonify({'success': False, 'error': 'Invalid request format'}), 400
@@ -283,12 +313,8 @@ def login():
                     else:
                         flash('Invalid email or password. Or try demo login: demo@aquatech.com / Demo123!', 'error')
     
-    # Get Firebase web config for Google Sign-In if available
-    firebase_config = None
-    if db.is_connected and hasattr(db, 'firebase_config') and db.firebase_config.firebase_web_config:
-        firebase_config = db.firebase_config.firebase_web_config
-    
-    return render_template('login.html', firebase_config=firebase_config)
+    # Let the context processor handle the Firebase configuration
+    return render_template('login.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -388,11 +414,11 @@ def signup():
                         flash(result['error'], 'error')
     
     # Get Firebase web config for Google Sign-In if available
-    firebase_config = None
+    firebase_web_config = None
     if db.is_connected and hasattr(db, 'firebase_config') and db.firebase_config.firebase_web_config:
-        firebase_config = db.firebase_config.firebase_web_config
+        firebase_web_config = db.firebase_config.firebase_web_config
     
-    return render_template('signup.html', firebase_config=firebase_config)
+    return render_template('signup.html', firebase_web_config=firebase_web_config)
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
@@ -411,16 +437,23 @@ def forgot_password():
         if db.is_connected:
             result = db.create_password_reset_token(email)
             if result['success']:
-                # In a real app, you would send an email here
-                # For demo purposes, we'll show the token in flash message
-                flash(f'Password reset instructions sent to your email. Demo token: {result["token"]}', 'success')
-                return redirect(url_for('reset_password_form', token=result['token']))
+                if result.get('is_firebase_link', False):
+                    # This is a Firebase Authentication reset link
+                    # In a real app, Firebase would send an email automatically
+                    # For demo purposes, we'll show the link
+                    flash('Password reset instructions have been sent to your email. Check your inbox to reset your password.', 'success')
+                    # If you want to simulate the Firebase email, uncomment the line below
+                    # flash(f'Firebase reset link (demo only): {result["reset_link"]}', 'info')
+                else:
+                    # For legacy token system (backward compatibility)
+                    flash(f'Password reset instructions sent to your email. Demo token: {result["token"]}', 'success')
+                    return redirect(url_for('reset_password_form', token=result['token']))
             else:
                 if 'not found' in result['error'].lower():
                     # Don't reveal if email exists or not for security
                     flash('If this email exists, password reset instructions have been sent.', 'info')
                 else:
-                    flash('Unable to process request. Please try again.', 'error')
+                    flash(result['error'], 'error')
         else:
             flash('Database not available. Please try again later.', 'warning')
     

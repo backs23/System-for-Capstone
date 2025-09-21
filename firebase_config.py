@@ -109,8 +109,11 @@ class FirebaseConfig:
         return self.firebase_web_config
         
     def get_web_config_json(self):
-        """Returns the web configuration as a JSON string"""
-        return json.dumps(self.firebase_web_config) if self.firebase_web_config else "{}"
+        """Returns the web configuration as a properly formatted JSON string"""
+        if self.firebase_web_config:
+            # Ensure we return a proper JSON string with escaped quotes
+            return json.dumps(self.firebase_web_config)
+        return '{}'
     
     def is_available(self):
         """Check if Firebase is available and initialized"""
