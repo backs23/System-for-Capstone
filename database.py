@@ -6,13 +6,17 @@ from firebase_config import firebase_config
 from datetime import datetime, timedelta
 import random
 import secrets
+import json
+import os
 from werkzeug.security import generate_password_hash, check_password_hash
 
 class AquaTechFirebaseDB:
     def __init__(self):
         self.firebase_config = firebase_config
         self.db = firebase_config.get_firestore_client()
+        self.auth = firebase_config.get_auth_client()
         self.is_connected = firebase_config.is_available()
+        self.fallback_file = 'fallback_users.json'
         
         if self.is_connected:
             print("✅ Connected to Firebase Firestore")
@@ -20,6 +24,9 @@ class AquaTechFirebaseDB:
             self.initialize_sample_data()
         else:
             print("⚠️ Firebase not available - using fallback mode")
+            
+        # Firebase Web Config for frontend usage
+        self.firebase_web_config = firebase_config.get_web_config()
     
     def initialize_sample_data(self):
         """Initialize the database with sample data if it's empty"""
@@ -97,7 +104,7 @@ class AquaTechFirebaseDB:
             return {"success": False, "error": "Failed to create account"}
     
     def authenticate_user(self, email, password):
-        """Authenticate user login"""
+        """Authenticate user login with email and password"""
         if not self.is_connected:
             return self._authenticate_fallback_user(email, password)
         
@@ -115,7 +122,19 @@ class AquaTechFirebaseDB:
             if not user_data.get("is_active", True):
                 return {"success": False, "error": "Account is deactivated"}
             
-            if check_password_hash(user_data["password_hash"], password):
+            # Check the auth provider to determine how to authenticate
+            auth_provider = user_data.get("auth_provider", "email")
+            
+            # If this is a Google account, redirect to Google Sign-in
+            if auth_provider == "google":
+                return {
+                    "success": False, 
+                    "error": "This account uses Google Sign-in. Please use the Google button to log in.",
+                    "auth_provider": "google"
+                }
+            
+            # For email/password authentication
+            if "password_hash" in user_data and check_password_hash(user_data["password_hash"], password):
                 # Update last login
                 user_doc.reference.update({
                     "last_login": datetime.now()
@@ -124,7 +143,8 @@ class AquaTechFirebaseDB:
                 # Log successful login
                 self._log_user_activity(user_doc.id, "login_successful", {
                     "email": email,
-                    "login_time": datetime.now()
+                    "login_time": datetime.now(),
+                    "auth_method": "password"
                 })
                 
                 # Return user info (without password)
@@ -154,6 +174,28 @@ class AquaTechFirebaseDB:
             return None
         
         try:
+            # First try Firebase Auth if available
+            if self.auth:
+                try:
+                    result = self.firebase_config.get_user_by_email(email)
+                    if result["success"]:
+                        # Now get the user document from Firestore
+                        user_id = result["user"]["uid"]
+                        user_doc = self.db.collection('users').document(user_id).get()
+                        if user_doc.exists:
+                            user_data = user_doc.to_dict()
+                            user_data['user_id'] = user_id
+                            # Merge with Firebase Auth data
+                            user_data.update({
+                                "email_verified": result["user"]["email_verified"],
+                                "auth_provider": user_data.get("auth_provider", "email")
+                            })
+                            return user_data
+                except Exception as auth_error:
+                    print(f"⚠️ Firebase Auth get_user_by_email failed: {auth_error}")
+                    # Fall back to Firestore lookup
+            
+            # Fallback to direct Firestore query
             users_collection = self.db.collection('users')
             user_docs = users_collection.where('email', '==', email.lower().strip()).limit(1).get()
             
@@ -174,6 +216,28 @@ class AquaTechFirebaseDB:
             return None
         
         try:
+            # First try Firebase Auth if available
+            if self.auth:
+                try:
+                    result = self.firebase_config.get_user(user_id)
+                    if result["success"]:
+                        # Now get the user document from Firestore
+                        user_doc = self.db.collection('users').document(user_id).get()
+                        if user_doc.exists:
+                            user_data = user_doc.to_dict()
+                            user_data['user_id'] = user_id
+                            # Merge with Firebase Auth data
+                            user_data.update({
+                                "email_verified": result["user"]["email_verified"],
+                                "display_name": result["user"]["display_name"],
+                                "auth_provider": user_data.get("auth_provider", "email")
+                            })
+                            return user_data
+                except Exception as auth_error:
+                    print(f"⚠️ Firebase Auth get_user failed: {auth_error}")
+                    # Fall back to Firestore lookup
+            
+            # Fallback to direct Firestore query
             user_doc = self.db.collection('users').document(user_id).get()
             if user_doc.exists:
                 user_data = user_doc.to_dict()
@@ -195,6 +259,19 @@ class AquaTechFirebaseDB:
             user = self.get_user_by_email(email)
             if not user:
                 return {"success": False, "error": "User not found"}
+            
+            # Check auth provider
+            auth_provider = user.get("auth_provider", "email")
+            if auth_provider != "email":
+                return {"success": False, "error": f"Cannot reset password for {auth_provider} accounts. Please use your {auth_provider} account settings."}
+            
+            # For Firebase Auth users, generate a password reset link
+            if "password_hash" not in user:
+                reset_link_result = self.firebase_config.generate_password_reset_link(email)
+                if reset_link_result["success"]:
+                    return {"success": True, "reset_link": reset_link_result["reset_link"], "is_firebase_link": True}
+                else:
+                    return {"success": False, "error": reset_link_result.get("error", "Failed to generate password reset link")}
             
             # Generate secure token
             token = secrets.token_urlsafe(32)
@@ -263,12 +340,31 @@ class AquaTechFirebaseDB:
             if not token_result["success"]:
                 return token_result
             
-            # Update password
-            user_ref = self.db.collection('users').document(token_result["user_id"])
-            user_ref.update({
-                "password_hash": generate_password_hash(new_password),
-                "updated_at": datetime.now()
-            })
+            # Get user data to check if Firebase Auth or regular user
+            user_id = token_result["user_id"]
+            user_doc = self.db.collection('users').document(user_id).get()
+            
+            if not user_doc.exists:
+                return {"success": False, "error": "User not found"}
+                
+            user_data = user_doc.to_dict()
+            email = user_data.get("email")
+            
+            # Update password in Firebase Auth if applicable
+            if email and "password_hash" not in user_data:
+                try:
+                    # For Firebase Auth users, use the Admin SDK to update password
+                    result = self.firebase_config.update_user(user_id, password=new_password)
+                    if not result["success"]:
+                        return {"success": False, "error": f"Failed to update password in Firebase: {result.get('error', 'Unknown error')}"}
+                except Exception as e:
+                    print(f"❌ Error updating Firebase Auth password: {e}")
+            else:
+                # Update password hash in our Firestore database
+                user_doc.reference.update({
+                    "password_hash": generate_password_hash(new_password),
+                    "updated_at": datetime.now()
+                })
             
             # Mark token as used
             tokens_collection = self.db.collection('password_reset_tokens')
@@ -386,6 +482,101 @@ class AquaTechFirebaseDB:
             
         except Exception as e:
             print(f"⚠️ Error logging user activity: {e}")
+            # Non-critical error, so we don't raise an exception
+            
+    def create_user_with_google(self, id_token):
+        """Create or authenticate a user with Google authentication"""
+        if not self.is_connected or not self.auth:
+            return {"success": False, "error": "Firebase not available for Google authentication"}
+
+        try:
+            # Verify the Google ID token using Firebase
+            verify_result = self.firebase_config.verify_google_id_token(id_token)
+            
+            if not verify_result["success"]:
+                return {"success": False, "error": verify_result.get("error", "Invalid Google token")}
+            
+            user_data = verify_result["user_data"]
+            email = user_data.get("email")
+            full_name = user_data.get("name")
+            user_id = user_data.get("uid")
+            photo_url = user_data.get("picture")
+            
+            if not email or not user_id:
+                return {"success": False, "error": "Invalid Google user data"}
+            
+            # Check if user already exists in our Firestore database
+            users_collection = self.db.collection('users')
+            existing_user = users_collection.document(user_id).get()
+            
+            if existing_user.exists:
+                # Update last login time for existing user
+                user_doc = existing_user.to_dict()
+                users_collection.document(user_id).update({
+                    "last_login": datetime.now()
+                })
+                
+                # Log successful login
+                self._log_user_activity(user_id, "login_successful", {
+                    "email": email,
+                    "login_time": datetime.now(),
+                    "auth_provider": "google"
+                })
+                
+                # Return user info
+                user_info = {
+                    "user_id": user_id,
+                    "email": email,
+                    "full_name": user_doc.get("full_name", full_name or email.split('@')[0]),
+                    "role": user_doc.get("profile", {}).get("role", "user"),
+                    "auth_provider": "google"
+                }
+                
+                return {"success": True, "user": user_info, "message": "Login successful with Google", "is_new_user": False}
+            else:
+                # Create new user document in Firestore
+                user_doc_data = {
+                    "email": email,
+                    "full_name": full_name or email.split('@')[0],
+                    "created_at": datetime.now(),
+                    "last_login": datetime.now(),
+                    "is_active": True,
+                    "email_verified": user_data.get("email_verified", False),
+                    "auth_provider": "google",
+                    "profile": {
+                        "role": "user",
+                        "preferences": {
+                            "notifications": True,
+                            "theme": "light"
+                        },
+                        "photo_url": photo_url
+                    }
+                }
+                
+                users_collection.document(user_id).set(user_doc_data)
+                
+                # Log user creation
+                self._log_user_activity(user_id, "account_created", {
+                    "email": email,
+                    "full_name": full_name,
+                    "auth_provider": "google",
+                    "creation_time": datetime.now()
+                })
+                
+                # Return user info
+                user_info = {
+                    "user_id": user_id,
+                    "email": email,
+                    "full_name": full_name or email.split('@')[0],
+                    "role": "user",
+                    "auth_provider": "google"
+                }
+                
+                return {"success": True, "user": user_info, "message": "Account created successfully with Google", "is_new_user": True}
+                
+        except Exception as e:
+            print(f"❌ Error with Google authentication: {e}")
+            return {"success": False, "error": f"Google authentication failed: {str(e)}"}
     
     # Fallback Methods (when Firebase is not available)
     def _create_fallback_user(self, email, password, full_name, company=None):

@@ -1,5 +1,6 @@
-# Firebase Service Account Key (NEVER commit this!)
+# Firebase Configuration Files (NEVER commit these!)
 firebase-service-account.json
+firebase-web-config.json
 
 # Python
 __pycache__/

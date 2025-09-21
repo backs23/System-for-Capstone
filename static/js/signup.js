@@ -75,7 +75,7 @@ class MaterialSignupForm {
     setupSocialButtons() {
         this.socialButtons.forEach(button => {
             button.addEventListener('click', (e) => {
-                const provider = button.classList.contains('google-material') ? 'Google' : 'Facebook';
+                const provider = button.classList.contains('google-material') ? 'google' : 'facebook';
                 this.createRipple(e, button.querySelector('.social-ripple'));
                 this.handleSocialSignup(provider, button);
             });
@@ -444,13 +444,39 @@ class MaterialSignupForm {
         this.setLoading(true);
         
         try {
-            // Simulate account creation
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            
-            // Show success state
-            this.showSuccess();
+            // Check if Firebase is available
+            if (window.firebase && window.firebase.auth) {
+                // Use Firebase authentication to create account
+                const userCredential = await window.firebase.auth().createUserWithEmailAndPassword(
+                    this.emailInput.value.trim(),
+                    this.passwordInput.value
+                );
+                
+                // Update user profile with full name
+                if (userCredential.user) {
+                    await userCredential.user.updateProfile({
+                        displayName: `${this.firstNameInput.value.trim()} ${this.lastNameInput.value.trim()}`
+                    });
+                }
+                
+                // Show success state
+                this.showSuccess();
+            } else {
+                // If Firebase is not available, submit the form normally
+                console.log('Firebase not available, submitting form normally');
+                this.form.submit();
+            }
         } catch (error) {
-            this.showError('email', 'Account creation failed. Please try again.');
+            console.error('Signup error:', error);
+            let errorMessage = 'Account creation failed. Please try again.';
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = 'This email is already in use';
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = 'Invalid email address';
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = 'Password is too weak';
+            }
+            this.showError('email', errorMessage);
         } finally {
             this.setLoading(false);
         }
@@ -463,10 +489,50 @@ class MaterialSignupForm {
         button.style.opacity = '0.7';
         
         try {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            console.log(`Redirecting to ${provider} authentication...`);
+            if (provider.toLowerCase() === 'google') {
+                // Check if Firebase is available
+                if (!window.firebase || !firebase.auth) {
+                    console.error('Firebase SDK not loaded');
+                    alert('Firebase authentication is not available. Please try again later.');
+                    return;
+                }
+                
+                // Use Firebase Google Auth provider
+                const provider = new firebase.auth.GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+                
+                // Sign up with popup
+                const result = await firebase.auth().signInWithPopup(provider);
+                
+                // Get the ID token to send to server
+                const idToken = await result.user.getIdToken();
+                
+                // Send token to server for validation and user creation
+                const response = await fetch('/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ google_id_token: idToken })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Successful account creation
+                    this.showSuccess();
+                } else {
+                    // Account creation failed
+                    throw new Error(data.error || 'Account creation failed');
+                }
+            } else {
+                // For other providers - keep the simulation for now
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                console.log(`Redirecting to ${provider} authentication...`);
+            }
         } catch (error) {
             console.error(`${provider} signup failed: ${error.message}`);
+            alert('Google sign-up failed: ' + error.message);
         } finally {
             button.style.pointerEvents = 'auto';
             button.style.opacity = '1';
@@ -508,10 +574,9 @@ class MaterialSignupForm {
             
         }, 600);
         
-        // Simulate redirect
+        // Redirect to login page after successful account creation
         setTimeout(() => {
-            console.log('Redirecting to dashboard...');
-            // window.location.href = '/dashboard';
+            window.location.href = '/login';
         }, 3500);
     }
 }

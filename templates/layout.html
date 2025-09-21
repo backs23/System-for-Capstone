@@ -6,6 +6,12 @@
     <title>{% block title %}AquaTech - Water Quality Monitoring{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js"></script>
+    
+    <!-- Firebase Web Configuration (will be populated by the server) -->
+    <script src="{{ url_for('static', filename='js/firebase-web-config.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="min-h-screen bg-gray-50">

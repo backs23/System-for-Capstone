@@ -25,8 +25,7 @@ A Python Flask-based website showcasing intelligent IoT-powered water monitoring
 ```
 python_website/
 ├── app.py                 # Main Flask application
-├── database.py            # MongoDB connection and data models
-├── setup_mongodb.py       # MongoDB setup helper script
+├── database.py            # Firebase connection and data models
 ├── requirements.txt       # Python dependencies
 ├── README.md             # This file
 ├── templates/            # Jinja2 HTML templates
@@ -48,6 +47,7 @@ python_website/
 
 - Python 3.7+ installed on your system
 - pip package manager
+- Firebase account and project (for persistent data storage)
 
 ### Installation
 
@@ -61,23 +61,27 @@ python_website/
    python -m pip install -r requirements.txt
    ```
 
-3. **Set up MongoDB** (Optional but recommended):
+3. **Set up Firebase** (Optional but recommended for persistent data):
    
-   The application works with or without MongoDB:
-   - **Without MongoDB**: Uses simulated sensor data (good for testing)
-   - **With MongoDB**: Uses real database with persistent data
+   The application works with or without Firebase:
+   - **Without Firebase**: Uses simulated sensor data (good for testing)
+   - **With Firebase**: Uses real database with persistent data
    
-   **Option A: Use MongoDB Atlas (Cloud - Recommended)**
-   ```bash
-   python setup_mongodb.py
-   ```
-   Follow option 3 for cloud setup instructions.
+   Follow these steps:
    
-   **Option B: Install MongoDB locally**
-   ```bash
-   python setup_mongodb.py
-   ```
-   Follow option 2 for local installation instructions.
+   a. **Create a Firebase project** - See FIREBASE_SETUP.md for detailed instructions
+   
+   b. **Set up service account key**:
+      - Download the service account key JSON file from Firebase Console
+      - Rename it to `firebase-service-account.json` and place it in the project root
+   
+   c. **Set up web configuration**:
+      - Go to Firebase Console > Project Settings > Your apps
+      - Register a new web app if you haven't already
+      - Copy the Firebase configuration object
+      - Create a file named `firebase-web-config.json` in the project root
+      - Paste the configuration object into this file
+      - A template file `firebase-web-config.json.template` has been created to help with this
 
 4. **Run the application**:
    ```bash
@@ -101,19 +105,11 @@ python_website/
 - Interactive charts showing historical trends
 - Quick control buttons for system operations
 - System alerts and status monitoring
-- Activity log with recent system events
 
 ### Water Monitoring
 - Current sensor readings with visual indicators
 - 24-hour trend charts
 - Sensor status monitoring
-- Quick calibration and maintenance tools
-
-### Feeding Systems
-- Today's feeding schedule with status indicators
-- Manual feeding controls
-- System status monitoring
-- Automated scheduling features
 
 ## API Endpoints
 

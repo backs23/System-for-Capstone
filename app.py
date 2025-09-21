@@ -8,6 +8,8 @@ import json
 from functools import wraps
 from database import db
 from werkzeug.security import generate_password_hash, check_password_hash
+import requests
+import base64
 
 app = Flask(__name__)
 
@@ -19,6 +21,16 @@ app.config['WTF_CSRF_SSL_STRICT'] = False  # Allow HTTP in development
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
+
+# Firebase Configuration
+from firebase_config import FirebaseConfig
+firebase_config = FirebaseConfig()
+
+# Add Firebase web config to all templates
+def inject_firebase_config():
+    return {'firebase_web_config': firebase_config.get_web_config_json()}
+
+app.context_processor(inject_firebase_config)
 
 # CSRF error handler
 @app.errorhandler(CSRFError)
@@ -158,59 +170,125 @@ def login():
     if 'user_id' in session:
         return redirect(url_for('homepage'))
     
-    if request.method == 'POST':
-        print(f"Login attempt - Form data: {dict(request.form)}")
-        email = request.form.get('email', '').strip()
-        password = request.form.get('password', '')
-        
-        # Basic validation
-        if not email or not password:
-            flash('Please fill in all fields', 'error')
-            return render_template('login.html')
-        
-        if not validate_email(email):
-            flash('Please enter a valid email address', 'error')
-            return render_template('login.html')
-        
-        # Try authentication with Firebase database, fallback if no database
-        if db.is_connected:
-            result = db.authenticate_user(email, password)
-            if result['success']:
-                # Store user info in session
-                session['user_id'] = result['user']['user_id']
-                session['user_email'] = result['user']['email']
-                session['user_name'] = result['user']['full_name']
-                session['user_role'] = result['user']['role']
-                
-                flash(f"Welcome back, {result['user']['full_name']}!", 'success')
-                return redirect(url_for('homepage'))
-            else:
-                flash(result['error'], 'error')
-        else:
-            # Fallback: Try fallback user authentication first
-            fallback_result = authenticate_fallback_user(email, password)
-            if fallback_result['success']:
-                # Store user info in session
-                session['user_id'] = fallback_result['user']['user_id']
-                session['user_email'] = fallback_result['user']['email']
-                session['user_name'] = fallback_result['user']['full_name']
-                session['user_role'] = fallback_result['user']['role']
-                
-                flash(f"Welcome back, {fallback_result['user']['full_name']}!", 'success')
-                return redirect(url_for('homepage'))
-            elif email == DEMO_EMAIL and password == DEMO_PASSWORD:
-                # Demo login as last resort
-                session['user_id'] = 'demo_user'
-                session['user_email'] = DEMO_EMAIL
-                session['user_name'] = 'Demo User'
-                session['user_role'] = 'demo'
-                
-                flash('Welcome to AquaTech Demo!', 'success')
-                return redirect(url_for('homepage'))
-            else:
-                flash('Invalid email or password. Or try demo login: demo@aquatech.com / Demo123!', 'error')
+    # Check for Google authentication state in query parameters
+    if request.args.get('google_login_error'):
+        error_message = request.args.get('error_message', 'Google authentication failed')
+        flash(error_message, 'error')
     
-    return render_template('login.html')
+    if request.method == 'POST':
+        # Check if it's a JSON request (from our updated JavaScript)
+        if request.is_json:
+            try:
+                # Parse JSON payload
+                data = request.get_json()
+                id_token = data.get('google_id_token')
+                
+                if id_token:
+                    # Process Google sign-in
+                    if db.is_connected:
+                        result = db.authenticate_user(None, None, google_id_token=id_token)
+                        if result['success']:
+                            # Store user info in session
+                            session['user_id'] = result['user']['user_id']
+                            session['user_email'] = result['user']['email']
+                            session['user_name'] = result['user']['full_name']
+                            session['user_role'] = result['user']['role']
+                            session['auth_provider'] = 'google'
+                            
+                            return jsonify({'success': True, 'message': 'Login successful'})
+                        else:
+                            return jsonify({'success': False, 'error': result['error']}), 401
+                    else:
+                        return jsonify({'success': False, 'error': 'Database not available. Google authentication is not available in offline mode.'}), 503
+                else:
+                    # Handle other JSON login cases if needed in the future
+                    return jsonify({'success': False, 'error': 'Invalid request format'}), 400
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 400
+        else:
+            # Check if it's a Google sign-in request from form data
+            id_token = request.form.get('google_id_token')
+            
+            if id_token:
+                # Process Google sign-in
+                if db.is_connected:
+                    result = db.authenticate_user(None, None, google_id_token=id_token)
+                    if result['success']:
+                        # Store user info in session
+                        session['user_id'] = result['user']['user_id']
+                        session['user_email'] = result['user']['email']
+                        session['user_name'] = result['user']['full_name']
+                        session['user_role'] = result['user']['role']
+                        session['auth_provider'] = 'google'
+                        
+                        flash(f"Welcome, {result['user']['full_name']}!", 'success')
+                        return redirect(url_for('homepage'))
+                    else:
+                        flash(result['error'], 'error')
+                else:
+                    flash('Database not available. Google authentication is not available in offline mode.', 'error')
+            else:
+                # Regular email/password login
+                print(f"Login attempt - Form data: {dict(request.form)}")
+                email = request.form.get('email', '').strip()
+                password = request.form.get('password', '')
+                
+                # Basic validation
+                if not email or not password:
+                    flash('Please fill in all fields', 'error')
+                    return render_template('login.html')
+                
+                if not validate_email(email):
+                    flash('Please enter a valid email address', 'error')
+                    return render_template('login.html')
+                
+                # Try authentication with Firebase database, fallback if no database
+                if db.is_connected:
+                    result = db.authenticate_user(email, password)
+                    if result['success']:
+                        # Store user info in session
+                        session['user_id'] = result['user']['user_id']
+                        session['user_email'] = result['user']['email']
+                        session['user_name'] = result['user']['full_name']
+                        session['user_role'] = result['user']['role']
+                        session['auth_provider'] = result['user'].get('auth_provider', 'email')
+                        
+                        flash(f"Welcome back, {result['user']['full_name']}!", 'success')
+                        return redirect(url_for('homepage'))
+                    else:
+                        flash(result['error'], 'error')
+                else:
+                    # Fallback: Try fallback user authentication first
+                    fallback_result = authenticate_fallback_user(email, password)
+                    if fallback_result['success']:
+                        # Store user info in session
+                        session['user_id'] = fallback_result['user']['user_id']
+                        session['user_email'] = fallback_result['user']['email']
+                        session['user_name'] = fallback_result['user']['full_name']
+                        session['user_role'] = fallback_result['user']['role']
+                        session['auth_provider'] = 'email'
+                        
+                        flash(f"Welcome back, {fallback_result['user']['full_name']}!", 'success')
+                        return redirect(url_for('homepage'))
+                    elif email == DEMO_EMAIL and password == DEMO_PASSWORD:
+                        # Demo login as last resort
+                        session['user_id'] = 'demo_user'
+                        session['user_email'] = DEMO_EMAIL
+                        session['user_name'] = 'Demo User'
+                        session['user_role'] = 'demo'
+                        session['auth_provider'] = 'demo'
+                        
+                        flash('Welcome to AquaTech Demo!', 'success')
+                        return redirect(url_for('homepage'))
+                    else:
+                        flash('Invalid email or password. Or try demo login: demo@aquatech.com / Demo123!', 'error')
+    
+    # Get Firebase web config for Google Sign-In if available
+    firebase_config = None
+    if db.is_connected and hasattr(db, 'firebase_config') and db.firebase_config.firebase_web_config:
+        firebase_config = db.firebase_config.firebase_web_config
+    
+    return render_template('login.html', firebase_config=firebase_config)
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -220,50 +298,101 @@ def signup():
         return redirect(url_for('homepage'))
     
     if request.method == 'POST':
-        print(f"Signup attempt - Form data: {dict(request.form)}")
-        full_name = request.form.get('full_name', '').strip()
-        email = request.form.get('email', '').strip()
-        password = request.form.get('password', '')
-        confirm_password = request.form.get('confirm_password', '')
-        
-        # Basic validation
-        if not all([full_name, email, password, confirm_password]):
-            flash('Please fill in all required fields', 'error')
-            return render_template('signup.html')
-        
-        if not validate_email(email):
-            flash('Please enter a valid email address', 'error')
-            return render_template('signup.html')
-        
-        if password != confirm_password:
-            flash('Passwords do not match', 'error')
-            return render_template('signup.html')
-        
-        # Validate password strength
-        is_valid, message = validate_password(password)
-        if not is_valid:
-            flash(message, 'error')
-            return render_template('signup.html')
-        
-        # Try to create user account
-        if db.is_connected:
-            result = db.create_user(email, password, full_name)
-            if result['success']:
-                flash('Account created successfully! Please log in.', 'success')
-                return redirect(url_for('login'))
-            else:
-                flash(result['error'], 'error')
+        # Check if it's a JSON request (from our updated JavaScript)
+        if request.is_json:
+            try:
+                # Parse JSON payload
+                data = request.get_json()
+                id_token = data.get('google_id_token')
+                
+                if id_token:
+                    # Process Google sign-up
+                    if db.is_connected:
+                        result = db.create_user_with_google(id_token)
+                        if result['success']:
+                            # Store user info in session to automatically log them in
+                            session['user_id'] = result['user']['user_id']
+                            session['user_email'] = result['user']['email']
+                            session['user_name'] = result['user']['full_name']
+                            session['user_role'] = result['user']['role']
+                            session['auth_provider'] = 'google'
+                            
+                            return jsonify({'success': True, 'message': 'Account created successfully'})
+                        else:
+                            return jsonify({'success': False, 'error': result['error']}), 400
+                    else:
+                        return jsonify({'success': False, 'error': 'Database not available. Google authentication is not available in offline mode.'}), 503
+                else:
+                    # Handle other JSON signup cases if needed in the future
+                    return jsonify({'success': False, 'error': 'Invalid request format'}), 400
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 400
         else:
-            # Fallback: Create user in local storage
-            print("Database not available, using fallback user creation")
-            result = create_fallback_user(email, password, full_name)
-            if result['success']:
-                flash('Account created successfully! You can now log in.', 'success')
-                return redirect(url_for('login'))
+            # Check if it's a Google sign-up request from form data
+            id_token = request.form.get('google_id_token')
+            
+            if id_token:
+                # Process Google sign-up
+                if db.is_connected:
+                    result = db.create_user_with_google(id_token)
+                    if result['success']:
+                        flash('Account created successfully with Google! Please log in.', 'success')
+                        return redirect(url_for('login'))
+                    else:
+                        flash(result['error'], 'error')
+                else:
+                    flash('Database not available. Google authentication is not available in offline mode.', 'error')
             else:
-                flash(result['error'], 'error')
+                # Regular email/password signup
+                print(f"Signup attempt - Form data: {dict(request.form)}")
+                full_name = request.form.get('full_name', '').strip()
+                email = request.form.get('email', '').strip()
+                password = request.form.get('password', '')
+                confirm_password = request.form.get('confirm_password', '')
+                
+                # Basic validation
+                if not all([full_name, email, password, confirm_password]):
+                    flash('Please fill in all required fields', 'error')
+                    return render_template('signup.html')
+                
+                if not validate_email(email):
+                    flash('Please enter a valid email address', 'error')
+                    return render_template('signup.html')
+                
+                if password != confirm_password:
+                    flash('Passwords do not match', 'error')
+                    return render_template('signup.html')
+                
+                # Validate password strength
+                is_valid, message = validate_password(password)
+                if not is_valid:
+                    flash(message, 'error')
+                    return render_template('signup.html')
+                
+                # Try to create user account
+                if db.is_connected:
+                    result = db.create_user(email, password, full_name)
+                    if result['success']:
+                        flash('Account created successfully! Please log in.', 'success')
+                        return redirect(url_for('login'))
+                    else:
+                        flash(result['error'], 'error')
+                else:
+                    # Fallback: Create user in local storage
+                    print("Database not available, using fallback user creation")
+                    result = create_fallback_user(email, password, full_name)
+                    if result['success']:
+                        flash('Account created successfully! You can now log in.', 'success')
+                        return redirect(url_for('login'))
+                    else:
+                        flash(result['error'], 'error')
     
-    return render_template('signup.html')
+    # Get Firebase web config for Google Sign-In if available
+    firebase_config = None
+    if db.is_connected and hasattr(db, 'firebase_config') and db.firebase_config.firebase_web_config:
+        firebase_config = db.firebase_config.firebase_web_config
+    
+    return render_template('signup.html', firebase_config=firebase_config)
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
@@ -340,6 +469,7 @@ def reset_password_form(token):
 @app.route('/logout')
 def logout():
     """Logout route"""
+    auth_provider = session.get('auth_provider', 'email')
     session.clear()
     flash('You have been logged out successfully.', 'success')
     return redirect(url_for('login'))
@@ -514,6 +644,20 @@ def api_sensor_data():
 def close_db_connection(exception):
     if db.is_connected:
         db.close_connection()
+
+@app.route('/auth/google/callback')
+def google_auth_callback():
+    """Handle Google OAuth callback"""
+    # This route is used when redirected back from Google OAuth
+    # The token is processed client-side with Firebase Auth JS SDK
+    # and sent to the server via AJAX/form submission
+    error = request.args.get('error')
+    if error:
+        return redirect(url_for('login', google_login_error=True, error_message=error))
+    
+    # Just redirect to login page, actual token handling happens in login route
+    return redirect(url_for('login'))
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

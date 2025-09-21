@@ -6,12 +6,15 @@ import json
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 from datetime import datetime
+import requests
 
 class FirebaseConfig:
     def __init__(self):
         self.app = None
         self.db = None
+        self.auth = None
         self.is_initialized = False
+        self.firebase_web_config = None
         
         # Try to initialize Firebase
         self.initialize_firebase()
@@ -23,8 +26,10 @@ class FirebaseConfig:
             if firebase_admin._apps:
                 self.app = firebase_admin.get_app()
                 self.db = firestore.client()
+                self.auth = auth
                 self.is_initialized = True
                 print("✅ Firebase already initialized")
+                self._load_web_config()
                 return True
             
             # Method 1: Try service account key file
@@ -33,8 +38,10 @@ class FirebaseConfig:
                 cred = credentials.Certificate(service_account_path)
                 self.app = firebase_admin.initialize_app(cred)
                 self.db = firestore.client()
+                self.auth = auth
                 self.is_initialized = True
                 print("✅ Firebase initialized with service account key")
+                self._load_web_config()
                 return True
             
             # Method 2: Try environment variables
@@ -43,8 +50,10 @@ class FirebaseConfig:
                 cred = credentials.Certificate(service_account_info)
                 self.app = firebase_admin.initialize_app(cred)
                 self.db = firestore.client()
+                self.auth = auth
                 self.is_initialized = True
                 print("✅ Firebase initialized with environment variables")
+                self._load_web_config()
                 return True
             
             # Method 3: Try Google Application Default Credentials (for local development)
@@ -52,29 +61,233 @@ class FirebaseConfig:
                 cred = credentials.ApplicationDefault()
                 self.app = firebase_admin.initialize_app(cred)
                 self.db = firestore.client()
+                self.auth = auth
                 self.is_initialized = True
                 print("✅ Firebase initialized with Application Default Credentials")
+                self._load_web_config()
                 return True
             
             print("⚠️ Firebase not configured. Please set up Firebase credentials.")
             print("   1. Download service account key as 'firebase-service-account.json'")
             print("   2. Or set FIREBASE_SERVICE_ACCOUNT_KEY environment variable")
-            print("   3. Or run 'python setup_firebase.py' for guided setup")
+            print("   3. Or see FIREBASE_SETUP.md for guided setup")
             return False
             
         except Exception as e:
             print(f"❌ Firebase initialization failed: {e}")
             return False
+            
+    def _load_web_config(self):
+        """Load Firebase web configuration from file or environment"""
+        try:
+            # Try to load from environment variable first
+            if os.getenv('FIREBASE_WEB_CONFIG'):
+                self.firebase_web_config = json.loads(os.getenv('FIREBASE_WEB_CONFIG'))
+                print("✅ Firebase web config loaded from environment variables")
+                return True
+                
+            # Try to load from file
+            web_config_path = os.path.join(os.path.dirname(__file__), 'firebase-web-config.json')
+            if os.path.exists(web_config_path):
+                with open(web_config_path, 'r') as f:
+                    self.firebase_web_config = json.load(f)
+                print("✅ Firebase web config loaded from file")
+                return True
+                
+            # If we got here, we couldn't load the web config
+            print("⚠️ Firebase web config not found. Some features may not work correctly.")
+            print("   Create a firebase-web-config.json file with your web app credentials")
+            print("   A template file 'firebase-web-config.json.template' has been created to help you with this.")
+            return False
+            
+        except Exception as e:
+            print(f"❌ Failed to load Firebase web config: {e}")
+            return False
+            
+    def get_web_config_dict(self):
+        """Returns the web configuration as a dictionary"""
+        return self.firebase_web_config
+        
+    def get_web_config_json(self):
+        """Returns the web configuration as a JSON string"""
+        return json.dumps(self.firebase_web_config) if self.firebase_web_config else "{}"
     
     def is_available(self):
         """Check if Firebase is available and initialized"""
-        return self.is_initialized and self.db is not None
+        return self.is_initialized and self.db is not None and self.auth is not None
     
     def get_firestore_client(self):
         """Get Firestore database client"""
         if self.is_available():
             return self.db
         return None
+        
+    def get_auth_client(self):
+        """Get Firebase Auth client"""
+        if self.is_available():
+            return self.auth
+        return None
+        
+    def get_web_config(self):
+        """Get Firebase web configuration for frontend"""
+        return self.firebase_web_config
+        
+    def create_user_with_email_and_password(self, email, password):
+        """Create a new user with email and password"""
+        if not self.is_available():
+            return {"success": False, "error": "Firebase not available"}
+        
+        try:
+            user = self.auth.create_user(
+                email=email,
+                password=password,
+                email_verified=False
+            )
+            return {"success": True, "user_id": user.uid, "email": email}
+        except Exception as e:
+            print(f"❌ Error creating user: {e}")
+            return {"success": False, "error": str(e)}
+            
+    def authenticate_with_email_and_password(self, email, password):
+        """Authenticate a user with email and password (verify password)"""
+        # Note: This method doesn't directly authenticate but can be used to verify passwords
+        # For full authentication, we should use the Firebase Auth REST API or client SDK
+        # This implementation will be enhanced in the database.py file
+        return {"success": False, "error": "Direct authentication not supported in admin SDK"}
+        
+    def verify_id_token(self, id_token):
+        """Verify a Firebase ID token (from frontend)"""
+        if not self.is_available():
+            return {"success": False, "error": "Firebase not available"}
+        
+        try:
+            decoded_token = self.auth.verify_id_token(id_token)
+            return {"success": True, "user_data": decoded_token}
+        except Exception as e:
+            print(f"❌ Error verifying ID token: {e}")
+            return {"success": False, "error": str(e)}
+            
+    def create_custom_token(self, user_id, additional_claims=None):
+        """Create a custom authentication token for a user"""
+        if not self.is_available():
+            return {"success": False, "error": "Firebase not available"}
+        
+        try:
+            token = self.auth.create_custom_token(user_id, additional_claims)
+            return {"success": True, "token": token.decode('utf-8')}
+        except Exception as e:
+            print(f"❌ Error creating custom token: {e}")
+            return {"success": False, "error": str(e)}
+            
+    def get_user(self, user_id):
+        """Get user information by user ID"""
+        if not self.is_available():
+            return {"success": False, "error": "Firebase not available"}
+        
+        try:
+            user = self.auth.get_user(user_id)
+            return {"success": True, "user": {
+                "uid": user.uid,
+                "email": user.email,
+                "email_verified": user.email_verified,
+                "display_name": user.display_name,
+                "photo_url": user.photo_url
+            }}
+        except Exception as e:
+            print(f"❌ Error getting user: {e}")
+            return {"success": False, "error": str(e)}
+            
+    def get_user_by_email(self, email):
+        """Get user information by email"""
+        if not self.is_available():
+            return {"success": False, "error": "Firebase not available"}
+        
+        try:
+            user = self.auth.get_user_by_email(email)
+            return {"success": True, "user": {
+                "uid": user.uid,
+                "email": user.email,
+                "email_verified": user.email_verified,
+                "display_name": user.display_name,
+                "photo_url": user.photo_url
+            }}
+        except Exception as e:
+            print(f"❌ Error getting user by email: {e}")
+            return {"success": False, "error": str(e)}
+            
+    def update_user(self, user_id, **kwargs):
+        """Update user information"""
+        if not self.is_available():
+            return {"success": False, "error": "Firebase not available"}
+        
+        try:
+            user = self.auth.update_user(user_id, **kwargs)
+            return {"success": True, "user": {
+                "uid": user.uid,
+                "email": user.email,
+                "email_verified": user.email_verified,
+                "display_name": user.display_name,
+                "photo_url": user.photo_url
+            }}
+        except Exception as e:
+            print(f"❌ Error updating user: {e}")
+            return {"success": False, "error": str(e)}
+            
+    def delete_user(self, user_id):
+        """Delete a user"""
+        if not self.is_available():
+            return {"success": False, "error": "Firebase not available"}
+        
+        try:
+            self.auth.delete_user(user_id)
+            return {"success": True, "message": "User deleted successfully"}
+        except Exception as e:
+            print(f"❌ Error deleting user: {e}")
+            return {"success": False, "error": str(e)}
+            
+    def generate_password_reset_link(self, email):
+        """Generate a password reset link for a user"""
+        if not self.is_available():
+            return {"success": False, "error": "Firebase not available"}
+        
+        try:
+            # Get the API key from web config or environment
+            api_key = None
+            if self.firebase_web_config:
+                api_key = self.firebase_web_config.get('apiKey')
+            
+            if not api_key:
+                api_key = os.getenv('FIREBASE_API_KEY')
+            
+            if not api_key:
+                return {"success": False, "error": "Firebase API key not available"}
+            
+            # Use Firebase Admin SDK to generate password reset link
+            link = self.auth.generate_password_reset_link(email)
+            return {"success": True, "reset_link": link}
+            
+        except Exception as e:
+            print(f"❌ Error generating password reset link: {e}")
+            return {"success": False, "error": str(e)}
+            
+    def verify_google_id_token(self, id_token):
+        """Verify a Google ID token (for Google Sign-in)"""
+        if not self.is_available():
+            return {"success": False, "error": "Firebase not available"}
+        
+        try:
+            # This will verify the Google ID token using Firebase Auth
+            decoded_token = self.auth.verify_id_token(id_token)
+            
+            # Check if the provider is Google
+            if 'firebase' in decoded_token and decoded_token['firebase'].get('sign_in_provider') == 'google.com':
+                return {"success": True, "user_data": decoded_token}
+            else:
+                return {"success": False, "error": "Not a Google authentication token"}
+                
+        except Exception as e:
+            print(f"❌ Error verifying Google ID token: {e}")
+            return {"success": False, "error": str(e)}
     
     def create_sample_data(self):
         """Create sample data for testing"""

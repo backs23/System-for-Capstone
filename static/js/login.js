@@ -48,7 +48,7 @@ class MaterialLoginForm {
     setupSocialButtons() {
         this.socialButtons.forEach(button => {
             button.addEventListener('click', (e) => {
-                const provider = button.classList.contains('google-material') ? 'Google' : 'Facebook';
+                const provider = button.classList.contains('google-material') ? 'google' : 'facebook';
                 this.createRipple(e, button.querySelector('.social-ripple'));
                 this.handleSocialLogin(provider, button);
             });
@@ -254,13 +254,30 @@ class MaterialLoginForm {
         this.setLoading(true);
         
         try {
-            // Simulate Material Design authentication flow
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            // Show Material success state
-            this.showMaterialSuccess();
+            // Check if Firebase is available
+            if (window.firebase && window.firebase.auth) {
+                // Use Firebase authentication
+                await window.firebase.auth().signInWithEmailAndPassword(
+                    this.emailInput.value.trim(),
+                    this.passwordInput.value
+                );
+                
+                // Show Material success state
+                this.showMaterialSuccess();
+            } else {
+                // If Firebase is not available, submit the form normally
+                console.log('Firebase not available, submitting form normally');
+                this.form.submit();
+            }
         } catch (error) {
-            this.showError('password', 'Sign in failed. Please try again.');
+            console.error('Login error:', error);
+            let errorMessage = 'Sign in failed. Please try again.';
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                errorMessage = 'Invalid email or password';
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = 'Too many login attempts. Please try again later.';
+            }
+            this.showError('password', errorMessage);
         } finally {
             this.setLoading(false);
         }
@@ -274,11 +291,50 @@ class MaterialLoginForm {
         button.style.opacity = '0.7';
         
         try {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            console.log(`Redirecting to ${provider} authentication...`);
-            // window.location.href = `/auth/${provider.toLowerCase()}`;
+            if (provider.toLowerCase() === 'google') {
+                // Check if Firebase is available
+                if (!window.firebase || !firebase.auth) {
+                    console.error('Firebase SDK not loaded');
+                    alert('Firebase authentication is not available. Please try again later.');
+                    return;
+                }
+                
+                // Use Firebase Google Auth provider
+                const provider = new firebase.auth.GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+                
+                // Sign in with popup
+                const result = await firebase.auth().signInWithPopup(provider);
+                
+                // Get the ID token to send to server
+                const idToken = await result.user.getIdToken();
+                
+                // Send token to server for validation and session creation
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ google_id_token: idToken })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Successful authentication
+                    this.showMaterialSuccess();
+                } else {
+                    // Authentication failed
+                    throw new Error(data.error || 'Authentication failed');
+                }
+            } else {
+                // For other providers - keep the simulation for now
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                console.log(`Redirecting to ${provider} authentication...`);
+            }
         } catch (error) {
             console.error(`${provider} authentication failed: ${error.message}`);
+            alert('Google sign-in failed: ' + error.message);
         } finally {
             button.style.pointerEvents = 'auto';
             button.style.opacity = '1';
@@ -315,10 +371,10 @@ class MaterialLoginForm {
             
         }, 300);
         
-        // Simulate redirect with Material timing
+        // Redirect to homepage after successful login
         setTimeout(() => {
-            console.log('Redirecting to dashboard...');
-            // window.location.href = '/dashboard';
+            console.log('Redirecting to homepage...');
+            window.location.href = '/';
         }, 2500);
     }
 }
