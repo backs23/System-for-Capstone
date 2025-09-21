@@ -2,11 +2,10 @@
 class MaterialSignupForm {
     constructor() {
         this.form = document.getElementById('signupForm');
-        this.firstNameInput = document.getElementById('firstName');
-        this.lastNameInput = document.getElementById('lastName');
+        this.fullNameInput = document.getElementById('full_name');
         this.emailInput = document.getElementById('email');
         this.passwordInput = document.getElementById('password');
-        this.confirmPasswordInput = document.getElementById('confirmPassword');
+        this.confirmPasswordInput = document.getElementById('confirm_password');
         this.termsCheckbox = document.getElementById('terms');
         this.passwordToggle = document.getElementById('passwordToggle');
         this.confirmPasswordToggle = document.getElementById('confirmPasswordToggle');
@@ -29,22 +28,20 @@ class MaterialSignupForm {
         this.form.addEventListener('submit', (e) => this.handleSubmit(e));
         
         // Validation on blur
-        this.firstNameInput.addEventListener('blur', () => this.validateFirstNameOnBlur());
-        this.lastNameInput.addEventListener('blur', () => this.validateLastNameOnBlur());
+        this.fullNameInput.addEventListener('blur', () => this.validateFullNameOnBlur());
         this.emailInput.addEventListener('blur', () => this.validateEmailOnBlur());
         this.passwordInput.addEventListener('blur', () => this.validatePasswordOnBlur());
         this.confirmPasswordInput.addEventListener('blur', () => this.validateConfirmPasswordOnBlur());
         this.termsCheckbox.addEventListener('change', () => this.validateTerms());
         
         // Input handling
-        this.firstNameInput.addEventListener('input', () => this.handleFirstNameInput());
-        this.lastNameInput.addEventListener('input', () => this.handleLastNameInput());
+        this.fullNameInput.addEventListener('input', () => this.handleFullNameInput());
         this.emailInput.addEventListener('input', () => this.handleEmailInput());
         this.passwordInput.addEventListener('input', () => this.handlePasswordInput());
         this.confirmPasswordInput.addEventListener('input', () => this.handleConfirmPasswordInput());
         
         // Focus/blur effects
-        [this.firstNameInput, this.lastNameInput, this.emailInput, this.passwordInput, this.confirmPasswordInput].forEach(input => {
+        [this.fullNameInput, this.emailInput, this.passwordInput, this.confirmPasswordInput].forEach(input => {
             input.addEventListener('focus', (e) => this.handleInputFocus(e));
             input.addEventListener('blur', (e) => this.handleInputBlur(e));
         });
@@ -84,7 +81,7 @@ class MaterialSignupForm {
     
     setupRippleEffects() {
         // Setup ripples for inputs
-        [this.firstNameInput, this.lastNameInput, this.emailInput, this.passwordInput, this.confirmPasswordInput].forEach(input => {
+        [this.fullNameInput, this.emailInput, this.passwordInput, this.confirmPasswordInput].forEach(input => {
             input.addEventListener('focus', (e) => {
                 const rippleContainer = input.parentNode.querySelector('.ripple-container');
                 this.createRipple(e, rippleContainer);
@@ -140,12 +137,8 @@ class MaterialSignupForm {
     }
     
     // Input handlers
-    handleFirstNameInput() {
-        this.clearErrorOnInput('firstName');
-    }
-    
-    handleLastNameInput() {
-        this.clearErrorOnInput('lastName');
+    handleFullNameInput() {
+        this.clearErrorOnInput('full_name');
     }
     
     handleEmailInput() {
@@ -163,7 +156,7 @@ class MaterialSignupForm {
     }
     
     handleConfirmPasswordInput() {
-        this.clearErrorOnInput('confirmPassword');
+        this.clearErrorOnInput('confirm_password');
     }
     
     clearErrorOnInput(field) {
@@ -230,57 +223,30 @@ class MaterialSignupForm {
     }
     
     // Validation methods
-    validateFirstNameOnBlur() {
-        const firstName = this.firstNameInput.value.trim();
-        const wasValidated = this.firstNameInput.closest('.form-group').classList.contains('error');
+    validateFullNameOnBlur() {
+        const fullName = this.fullNameInput.value.trim();
+        const wasValidated = this.fullNameInput.closest('.form-group').classList.contains('error');
         
-        if (firstName.length > 0 || wasValidated) {
-            return this.validateFirstName();
+        if (fullName.length > 0 || wasValidated) {
+            return this.validateFullName();
         }
         return true;
     }
-    
-    validateFirstName() {
-        const firstName = this.firstNameInput.value.trim();
+
+    validateFullName() {
+        const fullName = this.fullNameInput.value.trim();
         
-        if (!firstName) {
-            this.showError('firstName', 'First name is required');
+        if (!fullName) {
+            this.showError('full_name', 'Full name is required');
             return false;
         }
         
-        if (firstName.length < 2) {
-            this.showError('firstName', 'First name must be at least 2 characters');
+        if (fullName.length < 2) {
+            this.showError('full_name', 'Full name must be at least 2 characters');
             return false;
         }
         
-        this.clearError('firstName');
-        return true;
-    }
-    
-    validateLastNameOnBlur() {
-        const lastName = this.lastNameInput.value.trim();
-        const wasValidated = this.lastNameInput.closest('.form-group').classList.contains('error');
-        
-        if (lastName.length > 0 || wasValidated) {
-            return this.validateLastName();
-        }
-        return true;
-    }
-    
-    validateLastName() {
-        const lastName = this.lastNameInput.value.trim();
-        
-        if (!lastName) {
-            this.showError('lastName', 'Last name is required');
-            return false;
-        }
-        
-        if (lastName.length < 2) {
-            this.showError('lastName', 'Last name must be at least 2 characters');
-            return false;
-        }
-        
-        this.clearError('lastName');
+        this.clearError('full_name');
         return true;
     }
     
@@ -359,16 +325,16 @@ class MaterialSignupForm {
         const confirmPassword = this.confirmPasswordInput.value;
         
         if (!confirmPassword) {
-            this.showError('confirmPassword', 'Please confirm your password');
+            this.showError('confirm_password', 'Please confirm your password');
             return false;
         }
         
         if (password !== confirmPassword) {
-            this.showError('confirmPassword', 'Passwords do not match');
+            this.showError('confirm_password', 'Passwords do not match');
             return false;
         }
         
-        this.clearError('confirmPassword');
+        this.clearError('confirm_password');
         return true;
     }
     
@@ -383,28 +349,51 @@ class MaterialSignupForm {
     }
     
     showError(field, message) {
-        const formGroup = document.getElementById(field).closest('.form-group');
+        const fieldElement = document.getElementById(field);
         const errorElement = document.getElementById(`${field}Error`);
         
-        formGroup.classList.add('error');
-        formGroup.classList.add('show-error');
+        // Handle terms field differently since it's in a checkbox-wrapper instead of form-group
+        let container;
+        if (field === 'terms') {
+            container = fieldElement.closest('.checkbox-wrapper');
+        } else {
+            container = fieldElement.closest('.form-group');
+        }
+        
+        container.classList.add('error');
+        container.classList.add('show-error');
         errorElement.textContent = message;
         errorElement.classList.add('show');
         
         // Add Material Design shake animation
-        const input = document.getElementById(field);
-        input.style.animation = 'materialShake 0.4s ease-in-out';
-        setTimeout(() => {
-            input.style.animation = '';
-        }, 400);
+        // For terms field, apply to the checkbox-wrapper
+        if (field === 'terms') {
+            container.style.animation = 'materialShake 0.4s ease-in-out';
+            setTimeout(() => {
+                container.style.animation = '';
+            }, 400);
+        } else {
+            fieldElement.style.animation = 'materialShake 0.4s ease-in-out';
+            setTimeout(() => {
+                fieldElement.style.animation = '';
+            }, 400);
+        }
     }
     
     clearError(field) {
-        const formGroup = document.getElementById(field).closest('.form-group');
+        const fieldElement = document.getElementById(field);
         const errorElement = document.getElementById(`${field}Error`);
         
-        formGroup.classList.remove('error');
-        formGroup.classList.remove('show-error');
+        // Handle terms field differently since it's in a checkbox-wrapper instead of form-group
+        let container;
+        if (field === 'terms') {
+            container = fieldElement.closest('.checkbox-wrapper');
+        } else {
+            container = fieldElement.closest('.form-group');
+        }
+        
+        container.classList.remove('error');
+        container.classList.remove('show-error');
         errorElement.classList.remove('show');
         setTimeout(() => {
             errorElement.textContent = '';
@@ -412,10 +401,18 @@ class MaterialSignupForm {
     }
     
     clearErrorVisually(field) {
-        const formGroup = document.getElementById(field).closest('.form-group');
+        const fieldElement = document.getElementById(field);
         const errorElement = document.getElementById(`${field}Error`);
         
-        formGroup.classList.remove('show-error');
+        // Handle terms field differently since it's in a checkbox-wrapper instead of form-group
+        let container;
+        if (field === 'terms') {
+            container = fieldElement.closest('.checkbox-wrapper');
+        } else {
+            container = fieldElement.closest('.form-group');
+        }
+        
+        container.classList.remove('show-error');
         errorElement.classList.remove('show');
         setTimeout(() => {
             errorElement.textContent = '';
@@ -426,14 +423,13 @@ class MaterialSignupForm {
         e.preventDefault();
         
         // Validate all fields
-        const isFirstNameValid = this.validateFirstName();
-        const isLastNameValid = this.validateLastName();
+        const isFullNameValid = this.validateFullName();
         const isEmailValid = this.validateEmail();
         const isPasswordValid = this.validatePassword();
         const isConfirmPasswordValid = this.validateConfirmPassword();
         const areTermsValid = this.validateTerms();
         
-        if (!isFirstNameValid || !isLastNameValid || !isEmailValid || !isPasswordValid || !isConfirmPasswordValid || !areTermsValid) {
+        if (!isFullNameValid || !isEmailValid || !isPasswordValid || !isConfirmPasswordValid || !areTermsValid) {
             this.submitButton.style.animation = 'materialPulse 0.3s ease';
             setTimeout(() => {
                 this.submitButton.style.animation = '';
@@ -455,7 +451,7 @@ class MaterialSignupForm {
                 // Update user profile with full name
                 if (userCredential.user) {
                     await userCredential.user.updateProfile({
-                        displayName: `${this.firstNameInput.value.trim()} ${this.lastNameInput.value.trim()}`
+                        displayName: this.fullNameInput.value.trim()
                     });
                 }
                 
