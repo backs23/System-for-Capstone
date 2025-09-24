@@ -760,7 +760,7 @@ class AquaTechFirebaseDB:
                 'timestamp': datetime.now(timezone.utc) - timedelta(minutes=10),
                 'type': 'warning',
                 'message': 'Ammonia level approaching lower threshold',
-                'sensor_id': 'SENSOR_001'
+                'sensor_id': 'SENSOR_003'
             },
             {
                 'timestamp': datetime.now(timezone.utc) - timedelta(hours=2),

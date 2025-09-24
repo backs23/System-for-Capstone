@@ -127,7 +127,7 @@ The MongoDB database includes the following collections:
 
 ### sensor_data
 - Real-time and historical sensor readings
-- Fields: timestamp, ph, temperature, dissolved_oxygen, turbidity, salinity, ammonia
+- Fields: timestamp, ammonia, temperature, dissolved_oxygen, turbidity, salinity, and other key indicators
 - Automatically populated with 7 days of sample data
 
 ### feeding_schedules  
@@ -150,7 +150,7 @@ The MongoDB database includes the following collections:
 When MongoDB is available, the application uses real database data:
 - **With MongoDB**: 7 days of historical sensor data, real feeding schedules, system alerts
 - **Without MongoDB**: Simulated real-time data for demonstration
-  - pH levels (6.5 - 8.5)
+  - Ammonia levels (0 - 5 mg/L)
   - Temperature (20°C - 30°C) 
   - Dissolved Oxygen (4 - 12 mg/L)
   - Turbidity (0 - 50 NTU)
