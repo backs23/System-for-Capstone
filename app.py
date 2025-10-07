@@ -35,6 +35,234 @@ def inject_firebase_config():
 
 app.context_processor(inject_firebase_config)
 
+# Simple CORS for mobile development (React Native doesn't enforce CORS, but leave for web compatibility)
+@app.after_request
+def add_cors_headers(response):
+    try:
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    except Exception:
+        pass
+    return response
+
+@app.route('/api/health', methods=['GET'])
+def api_health():
+    return jsonify({'status': 'ok'}), 200
+
+# ==========================
+# Mobile API (JSON) endpoints
+# ==========================
+
+@app.route('/api/auth/sync', methods=['POST'])
+def api_auth_sync():
+    """Verify a Firebase ID token from the mobile app and ensure a user profile exists.
+    Body: { idToken: string }
+    Returns: { success: bool, user?: {...}, error?: string }
+    """
+    try:
+        data = request.get_json(force=True)
+        id_token = data.get('idToken') if data else None
+        if not id_token:
+            return jsonify({'success': False, 'error': 'Missing idToken'}), 400
+
+        auth_client = firebase_config.get_auth_client()
+        if not auth_client:
+            return jsonify({'success': False, 'error': 'Firebase not available'}), 503
+
+        decoded = auth_client.verify_id_token(id_token)
+        user_id = decoded.get('uid')
+        email = decoded.get('email')
+        display_name = decoded.get('name') or (email.split('@')[0] if email else 'User')
+
+        # Ensure user document exists in Firestore via db helper
+        user_doc = db.get_user_by_id(user_id)
+        if not user_doc:
+            # Create minimal user document
+            try:
+                db.db.collection('users').document(user_id).set({
+                    'email': (email or '').lower(),
+                    'full_name': display_name,
+                    'created_at': datetime.now(timezone.utc),
+                    'last_login': datetime.now(timezone.utc),
+                    'is_active': True,
+                    'auth_provider': 'email',
+                    'profile': {
+                        'role': 'user',
+                        'preferences': { 'notifications': True, 'theme': 'light' }
+                    }
+                })
+                user_doc = db.get_user_by_id(user_id)
+            except Exception as e:
+                return jsonify({'success': False, 'error': f'Failed to create user profile: {str(e)}'}), 500
+        else:
+            # Update last login
+            try:
+                db.db.collection('users').document(user_id).update({
+                    'last_login': datetime.now(timezone.utc),
+                    'updated_at': datetime.now(timezone.utc)
+                })
+            except Exception:
+                pass
+
+        return jsonify({'success': True, 'user': user_doc})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/auth/signup', methods=['POST'])
+def api_auth_signup():
+    """Create a Firebase user server-side and return a custom token for the mobile app.
+    Body: { email, password, full_name }
+    Returns: { success, customToken?, error? }
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        email = (data.get('email') or '').strip()
+        password = data.get('password') or ''
+        full_name = (data.get('full_name') or '').strip()
+        if not email or not password:
+            return jsonify({'success': False, 'error': 'Missing email or password'}), 400
+
+        # Create user with Admin SDK
+        result = firebase_config.create_user_with_email_and_password(email, password)
+        if not result['success']:
+            return jsonify({'success': False, 'error': result.get('error', 'Failed to create user')}), 400
+
+        user_id = result['user_id']
+        # Create Firestore profile
+        try:
+            db.db.collection('users').document(user_id).set({
+                'email': email.lower(),
+                'full_name': full_name or email.split('@')[0],
+                'created_at': datetime.now(timezone.utc),
+                'last_login': datetime.now(timezone.utc),
+                'is_active': True,
+                'auth_provider': 'email',
+                'profile': {
+                    'role': 'user',
+                    'preferences': { 'notifications': True, 'theme': 'light' }
+                }
+            })
+        except Exception:
+            pass
+
+        # Issue a custom token so client can sign in immediately
+        token_res = firebase_config.create_custom_token(user_id)
+        if not token_res['success']:
+            return jsonify({'success': False, 'error': token_res.get('error', 'Failed to mint custom token')}), 500
+
+        return jsonify({'success': True, 'customToken': token_res['token']}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/auth/login', methods=['POST'])
+def api_auth_login():
+    """Verify email/password using Firebase REST API, then return a custom token for client sign-in.
+    Body: { email, password }
+    Returns: { success, customToken?, error? }
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        email = (data.get('email') or '').strip()
+        password = data.get('password') or ''
+        if not email or not password:
+            return jsonify({'success': False, 'error': 'Missing email or password'}), 400
+
+        # Get Web API key
+        web_config = firebase_config.get_web_config_dict() or {}
+        api_key = web_config.get('apiKey')
+        if not api_key:
+            return jsonify({'success': False, 'error': 'Firebase API key not configured'}), 500
+
+        # Use Firebase Identity Toolkit REST to verify password
+        url = f'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}'
+        payload = { 'email': email, 'password': password, 'returnSecureToken': True }
+        r = requests.post(url, json=payload, timeout=10)
+        if r.status_code != 200:
+            try:
+                err = r.json()
+            except Exception:
+                err = {'error': 'Login failed'}
+            return jsonify({'success': False, 'error': err}), 401
+
+        data = r.json()
+        local_id = data.get('localId')
+        if not local_id:
+            return jsonify({'success': False, 'error': 'No user id returned from Firebase'}), 500
+
+        # Mint custom token
+        token_res = firebase_config.create_custom_token(local_id)
+        if not token_res['success']:
+            return jsonify({'success': False, 'error': token_res.get('error', 'Failed to mint custom token')}), 500
+
+        # Best-effort: update last_login
+        try:
+            db.db.collection('users').document(local_id).update({
+                'last_login': datetime.now(timezone.utc),
+                'updated_at': datetime.now(timezone.utc)
+            })
+        except Exception:
+            pass
+
+        return jsonify({'success': True, 'customToken': token_res['token']}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/auth/google', methods=['POST'])
+def api_auth_google():
+    """Verify a Google ID token from the mobile app and return a Firebase custom token.
+    Body: { idToken }
+    Returns: { success, customToken?, error? }
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        id_token = data.get('idToken')
+        if not id_token:
+            return jsonify({'success': False, 'error': 'Missing idToken'}), 400
+
+        # Verify with Admin SDK and ensure provider is google.com
+        result = firebase_config.verify_google_id_token(id_token)
+        if not result.get('success'):
+            return jsonify({'success': False, 'error': result.get('error', 'Invalid Google token')}), 401
+
+        decoded = result['user_data']
+        user_id = decoded.get('uid')
+        email = decoded.get('email')
+        display_name = decoded.get('name') or (email.split('@')[0] if email else 'User')
+
+        # Ensure profile exists (or create)
+        user_doc = db.get_user_by_id(user_id)
+        if not user_doc:
+            try:
+                db.db.collection('users').document(user_id).set({
+                    'email': (email or '').lower(),
+                    'full_name': display_name,
+                    'created_at': datetime.now(timezone.utc),
+                    'last_login': datetime.now(timezone.utc),
+                    'is_active': True,
+                    'auth_provider': 'google',
+                    'profile': { 'role': 'user', 'preferences': { 'notifications': True, 'theme': 'light' } }
+                })
+            except Exception:
+                pass
+        else:
+            try:
+                db.db.collection('users').document(user_id).update({
+                    'last_login': datetime.now(timezone.utc),
+                    'updated_at': datetime.now(timezone.utc)
+                })
+            except Exception:
+                pass
+
+        # Mint custom token to sign-in from client
+        token_res = firebase_config.create_custom_token(user_id)
+        if not token_res.get('success'):
+            return jsonify({'success': False, 'error': token_res.get('error', 'Failed to mint custom token')}), 500
+
+        return jsonify({'success': True, 'customToken': token_res['token']}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
 # CSRF error handler
 @app.errorhandler(CSRFError)
 def handle_csrf_error(e):
