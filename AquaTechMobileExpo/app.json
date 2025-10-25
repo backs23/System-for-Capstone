@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "TilapiaSync",
+    "slug": "AquaTechMobileExpo",
+    "scheme": "tilapiasync",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.monitoring.tilapiasync",
+      "googleServicesFile":"./GoogleService-info.plist"
+    },
+    "android": {
+      "package": "com.monitoring.tilapiasync",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "favicon": "./assets/icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          },
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "591e6dbd-758d-4021-94eb-4d441122c104"
+      }
+    },
+    "owner": "zkenia44"
+  }
+}
