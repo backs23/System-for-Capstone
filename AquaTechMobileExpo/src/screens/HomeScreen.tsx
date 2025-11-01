@@ -102,7 +102,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </View>
             
             <Text style={styles.heroTitle}>
-              Advanced Aquaculture with{'\n'}
+              Innovative Aquaculture with{'\n'}
               <Text style={styles.highlightText}>IoT-Powered</Text>{'\n'}
               Water Quality Monitoring
             </Text>

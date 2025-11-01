@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors, commonStyles, spacing, typography, borderRadius, shadows } from '../styles/commonStyles';
 
@@ -30,27 +31,27 @@ const ContactScreen: React.FC = () => {
 
         <View style={styles.content}>
           <View style={styles.contactCard}>
-            <TouchableOpacity style={styles.contactItem} onPress={() => handlePress('phone', '+1234567890')}>
+            <TouchableOpacity style={styles.contactItem} onPress={() => handlePress('phone', '0968 204 1378')}>
               <MaterialIcons name="phone" size={24} color={colors.primary} />
               <View style={styles.contactInfo}>
                 <Text style={styles.contactLabel}>Phone</Text>
-                <Text style={styles.contactValue}>+1 (234) 567-8900</Text>
+                <Text style={styles.contactValue}>+63 968 204 1378</Text>
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.contactItem} onPress={() => handlePress('email', 'support@aquatech.com')}>
+            <TouchableOpacity style={styles.contactItem} onPress={() => handlePress('email', 'support@tilapiasync.com')}>
               <MaterialIcons name="email" size={24} color={colors.primary} />
               <View style={styles.contactInfo}>
                 <Text style={styles.contactLabel}>Email</Text>
-                <Text style={styles.contactValue}>support@aquatech.com</Text>
+                <Text style={styles.contactValue}>support@tilapiasync.com</Text>
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.contactItem} onPress={() => handlePress('website', 'https://aquatech.com')}>
-              <MaterialIcons name="language" size={24} color={colors.primary} />
+            <TouchableOpacity style={styles.contactItem} onPress={() => handlePress('website', 'https://www.facebook.com/profile.php?id=61583273545618')}>
+              <MaterialCommunityIcons name="facebook" size={24} color={colors.primary} />
               <View style={styles.contactInfo}>
-                <Text style={styles.contactLabel}>Website</Text>
-                <Text style={styles.contactValue}>www.aquatech.com</Text>
+                <Text style={styles.contactLabel}>Facebook</Text>
+                <Text style={styles.contactValue}>TilapiaSync</Text>
               </View>
             </TouchableOpacity>
 
@@ -59,7 +60,7 @@ const ContactScreen: React.FC = () => {
               <View style={styles.contactInfo}>
                 <Text style={styles.contactLabel}>Address</Text>
                 <Text style={styles.contactValue}>
-                  123 Aquaculture Ave{'\n'}Tech City, TC 12345{'\n'}United States
+                  67 Campusong,{'\n'}Carmen{'\n'}United States
                 </Text>
               </View>
             </View>
@@ -77,9 +78,9 @@ const ContactScreen: React.FC = () => {
             <Text style={styles.infoText}>
               For critical system issues outside business hours, please contact our emergency hotline:
             </Text>
-            <TouchableOpacity style={styles.emergencyButton} onPress={() => handlePress('phone', '+1234567899')}>
+            <TouchableOpacity style={styles.emergencyButton} onPress={() => handlePress('phone', ' 0968 204 1378')}>
               <MaterialIcons name="warning" size={20} color={colors.white} />
-              <Text style={styles.emergencyText}>Emergency: +1 (234) 567-8999</Text>
+              <Text style={styles.emergencyText}>Emergency: +63 968 204 1378</Text>
             </TouchableOpacity>
           </View>
         </View>

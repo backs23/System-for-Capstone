@@ -93,7 +93,7 @@ const SignupScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <MaterialIcons name="person" size={20} color={colors.gray[400]} style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Enter your full name"
+                  placeholder="Enter your full name" placeholderTextColor={colors.gray[400]}
                   value={formData.name}
                   onChangeText={(text) => setFormData({...formData, name: text})}
                 />
@@ -106,7 +106,7 @@ const SignupScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <MaterialIcons name="email" size={20} color={colors.gray[400]} style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Enter your email"
+                  placeholder="Enter your email" placeholderTextColor={colors.gray[400]}
                   value={formData.email}
                   onChangeText={(text) => setFormData({...formData, email: text})}
                   keyboardType="email-address"
@@ -122,6 +122,7 @@ const SignupScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <TextInput
                   style={styles.textInput}
                   placeholder="Create password"
+                  placeholderTextColor={colors.gray[400]}
                   value={formData.password}
                   onChangeText={(text) => setFormData({...formData, password: text})}
                   secureTextEntry={!showPassword}
@@ -143,6 +144,7 @@ const SignupScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <TextInput
                   style={styles.textInput}
                   placeholder="Confirm password"
+                  placeholderTextColor={colors.gray[400]}
                   value={formData.confirmPassword}
                   onChangeText={(text) => setFormData({...formData, confirmPassword: text})}
                   secureTextEntry={!showConfirmPassword}
@@ -261,6 +263,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: spacing['4xl'],
   },
   loginText: {
     fontSize: typography.fontSize.base,

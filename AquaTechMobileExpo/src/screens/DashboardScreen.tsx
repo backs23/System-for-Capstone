@@ -227,8 +227,6 @@ const DashboardScreen: React.FC = () => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Dashboard Demo</Text>
-          <Text style={styles.headerSubtitle}>Real-time monitoring of your aquaculture systems</Text>
         </View>
 
         {/* Current Status Cards */}

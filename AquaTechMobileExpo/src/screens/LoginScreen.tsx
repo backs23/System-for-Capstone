@@ -146,7 +146,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           <View style={styles.formContainer}>
             <Text style={styles.welcomeTitle}>Welcome Back</Text>
             <Text style={styles.welcomeSubtitle}>
-              Sign in to access your aquaculture monitoring dashboard
+              Sign in to access
             </Text>
 
             {/* Email Input */}
