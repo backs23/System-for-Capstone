@@ -4,7 +4,7 @@
 export const API_CONFIG = {
   // IMPORTANT: When testing on a physical phone, set this to your PC's LAN IP (not 127.0.0.1)
   // Example: 'http://192.168.1.100:5000'
-  BASE_URL: 'http://192.168.1.52:5000',
+  BASE_URL: 'http://192.168.100.6:5000',
   USE_MOCKS: false, // Set to false to enable real network calls to Flask backend
   TIMEOUT_MS: 10000,
   ENDPOINTS: {

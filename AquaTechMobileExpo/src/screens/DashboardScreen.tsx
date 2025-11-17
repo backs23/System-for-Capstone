@@ -133,7 +133,7 @@ const DashboardScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [currentData, setCurrentData] = useState({
     temperature: '24.5',
-    dissolved_oxygen: '7.2',
+    turbidity: '2.1',
     ammonia: '0.15',
     timestamp: new Date().toLocaleTimeString(),
   });
@@ -185,12 +185,12 @@ const DashboardScreen: React.FC = () => {
       status: 'Success',
       details: 'All sensors operational',
     },
-    {
-      time: '10:00 AM',
-      action: 'Sensor Calibration',
-      status: 'Complete',
-      details: 'DO sensors calibrated',
-    },
+      {
+        time: '10:00 AM',
+        action: 'Sensor Calibration',
+        status: 'Complete',
+        details: 'Turbidity sensor calibrated',
+      },
     {
       time: '06:00 AM',
       action: 'Water Quality Alert',
@@ -242,11 +242,11 @@ const DashboardScreen: React.FC = () => {
           />
           
           <MetricCard
-            title="Dissolved O2"
-            value={currentData.dissolved_oxygen}
-            unit="mg/L"
-            status="Good Level"
-            icon="air"
+            title="Turbidity"
+            value={currentData.turbidity}
+            unit="NTU"
+            status="Clear Water"
+            icon="waves"
             iconColor="#16a34a"
             bgColor="#dcfce7"
           />

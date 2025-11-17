@@ -203,7 +203,7 @@ class ApiService {
         time: '10:00 AM',
         action: 'Sensor Calibration',
         status: 'Complete',
-        details: 'DO sensors calibrated',
+        details: 'Turbidity sensor calibrated',
       },
       {
         id: '3',
@@ -330,7 +330,7 @@ class ApiService {
         latitude: '0.0',
         longitude: '0.0',
         field1: 'Temperature',
-        field2: 'Dissolved Oxygen',
+        field2: 'Turbidity',
         field3: 'pH Level',
         field4: 'Ammonia',
         created_at: '2024-01-01T00:00:00Z',

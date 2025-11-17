@@ -70,12 +70,12 @@ const WaterMonitoringScreen: React.FC = () => {
       description: 'Optimal range: 22-26°C',
     },
     {
-      title: 'Dissolved Oxygen',
-      value: '7.2',
-      unit: 'mg/L',
-      icon: 'air',
+      title: 'Turbidity',
+      value: '2.1',
+      unit: 'NTU',
+      icon: 'waves',
       status: 'good' as const,
-      description: 'Minimum required: 5.0 mg/L',
+      description: 'Recommended: < 5 NTU',
     },
     {
       title: 'Ammonia',

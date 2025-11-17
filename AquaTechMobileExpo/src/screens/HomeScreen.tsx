@@ -71,7 +71,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const sensors = [
     { icon: 'thermostat', name: 'Temperature', desc: 'Water temperature monitoring' },
-    { icon: 'water-drop', name: 'Dissolved Oxygen', desc: 'Oxygen level tracking' },
+    { icon: 'waves', name: 'Turbidity', desc: 'Water clarity monitoring' },
     { icon: 'filter-alt', name: 'Ammonia', desc: 'Ammonia concentration' },
   ];
 
