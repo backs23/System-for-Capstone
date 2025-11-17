@@ -39,11 +39,11 @@ const ContactScreen: React.FC = () => {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.contactItem} onPress={() => handlePress('email', 'support@tilapiasync.com')}>
+            <TouchableOpacity style={styles.contactItem} onPress={() => handlePress('email', 'tilapiasync@gmail.com')}>
               <MaterialIcons name="email" size={24} color={colors.primary} />
               <View style={styles.contactInfo}>
                 <Text style={styles.contactLabel}>Email</Text>
-                <Text style={styles.contactValue}>support@tilapiasync.com</Text>
+                <Text style={styles.contactValue}>tilapiasync@gmail.com</Text>
               </View>
             </TouchableOpacity>
 
