@@ -2,7 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, SafeAreaView, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import { colors, commonStyles, spacing, typography, borderRadius, shadows } from '../styles/commonStyles';
+import { LineChart } from 'react-native-chart-kit';
+import database from '@react-native-firebase/database';
+import { colors, commonStyles, spacing, typography, borderRadius, shadows, screen } from '../styles/commonStyles';
+import { SensorReading } from '../services/apiService';
+
+// Toggle this to quickly see filled graphs without a real backend
+const USE_MOCK_HISTORY = false;
+// Realtime Database path where your latest sensor reading is stored
+// Example expected shape under this path:
+// { temperature, turbidity, ammonia, dissolved_oxygen, ph_level, conductivity, timestamp }
+// or an object of readings where the last key is the newest entry.
+const SENSOR_DB_PATH = '/tilapiaTank';
 
 interface SensorDataProps {
   title: string;
@@ -59,30 +70,156 @@ const SensorCard: React.FC<SensorDataProps> = ({ title, value, unit, icon, statu
 const WaterMonitoringScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [reading, setReading] = useState<SensorReading | null>(null);
+  const [history, setHistory] = useState<{
+    labels: string[];
+    temperature: number[];
+    turbidity: number[];
+    ammonia: number[];
+  }>({ labels: [], temperature: [], turbidity: [], ammonia: [] });
+
+  // For testing: prefill graphs with nice-looking mock data so you can see the UI immediately
+  useEffect(() => {
+    if (!USE_MOCK_HISTORY) return;
+    if (history.labels.length > 0) return;
+
+    const now = Date.now();
+    const POINTS = 12;
+    const mockLabels: string[] = [];
+    const mockTemperature: number[] = [];
+    const mockTurbidity: number[] = [];
+    const mockAmmonia: number[] = [];
+
+    for (let i = POINTS - 1; i >= 0; i--) {
+      const ts = new Date(now - i * 5 * 60 * 1000); // every 5 minutes
+      mockLabels.push(ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      const phase = (POINTS - 1 - i) / (POINTS - 1);
+
+      mockTemperature.push(24 + Math.sin(phase * Math.PI) * 1.2); // ~23-25.2°C
+      mockTurbidity.push(2 + Math.cos(phase * Math.PI) * 0.7); // ~1.3-2.7 NTU
+      mockAmmonia.push(0.15 + Math.sin(phase * Math.PI) * 0.03); // ~0.12-0.18 mg/L
+    }
+
+    setHistory({
+      labels: mockLabels,
+      temperature: mockTemperature,
+      turbidity: mockTurbidity,
+      ammonia: mockAmmonia,
+    });
+  }, []);
+
+  const pushHistory = (next: SensorReading) => {
+    const label = new Date(next.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const MAX_POINTS = 20;
+    setHistory((prev) => ({
+      labels: [...prev.labels, label].slice(-MAX_POINTS),
+      temperature: [...prev.temperature, next.temperature].slice(-MAX_POINTS),
+      turbidity: [...prev.turbidity, next.turbidity].slice(-MAX_POINTS),
+      ammonia: [...prev.ammonia, next.ammonia].slice(-MAX_POINTS),
+    }));
+  };
+
+  // Subscribe to Firebase Realtime Database for live sensor updates.
+  // Wrapped in try/catch so that on Expo Go (where the native module isn't available)
+  // the screen will fall back to mock data instead of crashing.
+  useEffect(() => {
+    let ref: any | null = null;
+    let listener: any | null = null;
+
+    try {
+      const dbInstance = database();
+      if (!dbInstance || typeof dbInstance.ref !== 'function') {
+        console.warn('[WaterMonitoring] Realtime Database instance not available; using mock data only.');
+        return;
+      }
+
+      ref = dbInstance.ref(SENSOR_DB_PATH);
+      listener = ref.on('value', (snapshot: any) => {
+        const raw = snapshot.val();
+        if (!raw) return;
+
+        // If /tilapiaTank contains multiple child readings, pick the last one.
+        let value: any = raw;
+        if (raw && typeof raw === 'object' && !('temperature' in raw)) {
+          const keys = Object.keys(raw);
+          if (!keys.length) return;
+          const lastKey = keys.sort().at(-1)!;
+          value = raw[lastKey];
+        }
+
+        const latest: SensorReading = {
+          // Only fields expected from Realtime DB: temperature, turbidity, ammonia, lastUpdated
+          temperature: Number(value.temperature ?? 24.5),
+          turbidity: Number(value.turbidity ?? 2.1),
+          ammonia: Number(value.ammonia ?? 0.15),
+          // These extra fields are kept just to satisfy the SensorReading type and other screens;
+          // they are not used on the Water Monitoring screen.
+          dissolved_oxygen: 0,
+          ph_level: 0,
+          conductivity: 0,
+          // DB uses `lastUpdated` instead of `timestamp`
+          timestamp: String(value.lastUpdated ?? new Date().toISOString()),
+        };
+
+        setReading(latest);
+        setLastUpdate(new Date(latest.timestamp));
+        pushHistory(latest);
+      });
+    } catch (err) {
+      console.warn('[WaterMonitoring] Failed to attach Firebase DB listener; using mock data only.', err);
+    }
+
+    return () => {
+      if (ref && typeof ref.off === 'function' && listener) {
+        ref.off('value', listener);
+      }
+    };
+  }, []);
 
   const sensorData = [
     {
       title: 'Water Temperature',
-      value: '24.5',
+      value: (reading?.temperature ?? 24.5).toFixed(1),
       unit: '°C',
       icon: 'thermostat',
-      status: 'good' as const,
+      status:
+        reading?.temperature == null
+          ? ('good' as const)
+          : reading.temperature < 21 || reading.temperature > 28
+          ? ('critical' as const)
+          : reading.temperature < 22 || reading.temperature > 26
+          ? ('warning' as const)
+          : ('good' as const),
       description: 'Optimal range: 22-26°C',
     },
     {
       title: 'Turbidity',
-      value: '2.1',
+      value: (reading?.turbidity ?? 2.1).toFixed(1),
       unit: 'NTU',
       icon: 'waves',
-      status: 'good' as const,
+      status:
+        reading?.turbidity == null
+          ? ('good' as const)
+          : reading.turbidity >= 10
+          ? ('critical' as const)
+          : reading.turbidity >= 5
+          ? ('warning' as const)
+          : ('good' as const),
       description: 'Recommended: < 5 NTU',
     },
     {
       title: 'Ammonia',
-      value: '0.15',
+      value: (reading?.ammonia ?? 0.15).toFixed(2),
       unit: 'mg/L',
       icon: 'warning',
-      status: 'critical' as const,
+      status:
+        reading?.ammonia == null
+          ? ('critical' as const)
+          : reading.ammonia >= 0.2
+          ? ('critical' as const)
+          : reading.ammonia >= 0.1
+          ? ('warning' as const)
+          : ('good' as const),
       description: 'Safe level: <0.1 mg/L',
     },
   ];
@@ -97,11 +234,9 @@ const WaterMonitoringScreen: React.FC = () => {
   );
 
   const onRefresh = React.useCallback(() => {
+    // With a realtime subscription, a manual refresh just shows the spinner briefly.
     setRefreshing(true);
-    setTimeout(() => {
-      setLastUpdate(new Date());
-      setRefreshing(false);
-    }, 2000);
+    setTimeout(() => setRefreshing(false), 800);
   }, []);
 
   return (
@@ -144,6 +279,128 @@ const WaterMonitoringScreen: React.FC = () => {
           {sensorData.map((sensor, index) => (
             <SensorCard key={index} {...sensor} />
           ))}
+
+          <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Live Trends</Text>
+
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Temperature (°C)</Text>
+            {history.temperature.length === 0 ? (
+              <Text style={styles.chartEmpty}>Waiting for live data...</Text>
+            ) : (
+              <LineChart
+                data={{
+                  labels: history.labels,
+                  datasets: [
+                    {
+                      data: history.temperature,
+                      color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
+                      strokeWidth: 2,
+                    },
+                  ],
+                }}
+                width={screen.width - 48}
+                height={200}
+                chartConfig={{
+                  backgroundColor: colors.white,
+                  backgroundGradientFrom: colors.white,
+                  backgroundGradientTo: colors.white,
+                  decimalPlaces: 1,
+                  color: (opacity = 1) => `rgba(8, 145, 178, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(75, 85, 99, ${opacity})`,
+                  style: {
+                    borderRadius: borderRadius.base,
+                  },
+                  propsForDots: {
+                    r: '4',
+                    strokeWidth: '2',
+                    stroke: colors.primary,
+                  },
+                }}
+                bezier
+                style={styles.chart}
+              />
+            )}
+          </View>
+
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Turbidity (NTU)</Text>
+            {history.turbidity.length === 0 ? (
+              <Text style={styles.chartEmpty}>Waiting for live data...</Text>
+            ) : (
+              <LineChart
+                data={{
+                  labels: history.labels,
+                  datasets: [
+                    {
+                      data: history.turbidity,
+                      color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
+                      strokeWidth: 2,
+                    },
+                  ],
+                }}
+                width={screen.width - 48}
+                height={200}
+                chartConfig={{
+                  backgroundColor: colors.white,
+                  backgroundGradientFrom: colors.white,
+                  backgroundGradientTo: colors.white,
+                  decimalPlaces: 1,
+                  color: (opacity = 1) => `rgba(8, 145, 178, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(75, 85, 99, ${opacity})`,
+                  style: {
+                    borderRadius: borderRadius.base,
+                  },
+                  propsForDots: {
+                    r: '4',
+                    strokeWidth: '2',
+                    stroke: colors.primary,
+                  },
+                }}
+                bezier
+                style={styles.chart}
+              />
+            )}
+          </View>
+
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Ammonia (mg/L)</Text>
+            {history.ammonia.length === 0 ? (
+              <Text style={styles.chartEmpty}>Waiting for live data...</Text>
+            ) : (
+              <LineChart
+                data={{
+                  labels: history.labels,
+                  datasets: [
+                    {
+                      data: history.ammonia,
+                      color: (opacity = 1) => `rgba(249, 115, 22, ${opacity})`,
+                      strokeWidth: 2,
+                    },
+                  ],
+                }}
+                width={screen.width - 48}
+                height={200}
+                chartConfig={{
+                  backgroundColor: colors.white,
+                  backgroundGradientFrom: colors.white,
+                  backgroundGradientTo: colors.white,
+                  decimalPlaces: 2,
+                  color: (opacity = 1) => `rgba(8, 145, 178, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(75, 85, 99, ${opacity})`,
+                  style: {
+                    borderRadius: borderRadius.base,
+                  },
+                  propsForDots: {
+                    r: '4',
+                    strokeWidth: '2',
+                    stroke: colors.primary,
+                  },
+                }}
+                bezier
+                style={styles.chart}
+              />
+            )}
+          </View>
 
           <View style={styles.infoCard}>
             <MaterialIcons name="info" size={24} color={colors.info} />
@@ -297,6 +554,29 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.xs,
     fontWeight: typography.fontWeight.bold,
     letterSpacing: 0.5,
+  },
+  chartCard: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    ...shadows.medium,
+  },
+  chartTitle: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.gray[900],
+    marginBottom: spacing.sm,
+  },
+  chart: {
+    marginVertical: spacing.sm,
+    borderRadius: borderRadius.base,
+  },
+  chartEmpty: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[500],
+    textAlign: 'center',
+    paddingVertical: spacing.md,
   },
   infoCard: {
     flexDirection: 'row',

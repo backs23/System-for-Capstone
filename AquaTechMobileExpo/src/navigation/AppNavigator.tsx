@@ -62,14 +62,14 @@ const MainTabs = () => {
   const { logout } = require('../utils/auth');
   return (
     <Tab.Navigator
-      initialRouteName="Home"
+      initialRouteName="Dashboard"
       screenOptions={({ route }) => ({
         tabBarIcon: ({ color, size }) => {
           let iconName: string;
 
           switch (route.name) {
             case 'Home':
-              iconName = 'home';
+              iconName = 'menu-book'; // User Guide tab uses a book icon
               break;
             case 'Dashboard':
               iconName = 'dashboard';
@@ -114,10 +114,10 @@ const MainTabs = () => {
         tabBarHideOnKeyboard: true,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Home', tabBarLabel: 'Home' }} />
       <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Dashboard' }} />
       <Tab.Screen name="Monitor" component={WaterMonitoringScreen} options={{ title: 'Water Monitor' }} />
       <Tab.Screen name="Contact" component={ContactScreen} options={{ title: 'Contact Us' }} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'User Guide', tabBarLabel: 'User Guide' }} />
     </Tab.Navigator>
   );
 };

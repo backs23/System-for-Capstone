@@ -46,106 +46,53 @@ const SensorItem: React.FC<SensorItemProps> = ({ icon, name, description }) => (
 );
 
 const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  // Quick overview cards for the device user guide
   const features = [
     {
-      icon: 'sensors',
-      title: 'Real-time Monitoring',
-      description: 'Live sensor data tracking with instant updates and alerts',
+      icon: 'settings-input-component',
+      title: '1. Install the Device',
+      description: 'Mount the TilapiaSync probe vertically in the tank and keep sensors fully submerged.',
     },
     {
-      icon: 'analytics',
-      title: 'Data Analytics',
-      description: 'Advanced insights and predictive analysis for optimal results',
+      icon: 'wifi',
+      title: '2. Connect to Wi‑Fi',
+      description: 'Power on the controller, open the TilapiaSync app, and follow the on-screen Wi‑Fi wizard.',
     },
     {
-      icon: 'cloud',
-      title: 'Cloud Integration',
-      description: 'Secure cloud storage with remote access capabilities',
+      icon: 'science',
+      title: '3. Calibrate Sensors',
+      description: 'Run the guided calibration for temperature, turbidity, and ammonia before first use.',
     },
     {
-      icon: 'notifications',
-      title: 'Smart Alerts',
-      description: 'Automated notifications for critical parameter changes',
+      icon: 'notifications-active',
+      title: '4. Enable Alerts',
+      description: 'Set notification thresholds so you are alerted when water quality leaves safe ranges.',
     },
   ];
 
+  // Key hardware parts the farmer interacts with
   const sensors = [
-    { icon: 'thermostat', name: 'Temperature', desc: 'Water temperature monitoring' },
-    { icon: 'waves', name: 'Turbidity', desc: 'Water clarity monitoring' },
-    { icon: 'filter-alt', name: 'Ammonia', desc: 'Ammonia concentration' },
+    { icon: 'sensors', name: 'Probe Assembly', desc: 'Combined temperature, turbidity, and ammonia sensor.' },
+    { icon: 'router', name: 'Controller Box', desc: 'Connects to Wi‑Fi and sends readings to the TilapiaSync app.' },
+    { icon: 'battery-charging-full', name: 'Power Supply', desc: 'Use the supplied adapter and keep away from splashes.' },
   ];
 
+  // Step-by-step usage guidance bullets
   const waterFeatures = [
-    'Real-time multi-parameter monitoring',
-    'Cloud-based data analytics',
-    'Automated alert system',
-    'Historical data trends',
-    'Mobile dashboard access',
-    'Predictive water quality insights',
-    'ThingSpeak API integration',
-    '24/7 remote monitoring',
+    'Check the dashboard at least twice a day for turbidity and temperature trends.',
+    'Respond to \"Warning\" and \"Critical\" alerts immediately to avoid fish stress.',
+    'Clean the probe weekly with fresh water—never use soap or chemicals.',
+    'Recalibrate sensors every 30 days or after moving the device to a new tank.',
+    'Keep the controller box above water level and protected from direct rain.',
+    'Ensure stable Wi‑Fi within 5–10 meters of the controller for reliable uploads.',
+    'Back up reports regularly using the Export Data button in the dashboard.',
+    'Contact support if readings are flat or clearly unrealistic for more than 1 hour.',
   ];
-
+  
   return (
     <SafeAreaView style={commonStyles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Hero Section */}
-        <LinearGradient
-          colors={[colors.primaryLight, colors.primary, colors.primaryDark]}
-          style={styles.heroSection}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.heroContent}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Next-Generation Aquaculture</Text>
-            </View>
-            
-            <Text style={styles.heroTitle}>
-              Innovative Aquaculture with{'\n'}
-              <Text style={styles.highlightText}>IoT-Powered</Text>{'\n'}
-              Water Quality Monitoring
-            </Text>
-            
-            <Text style={styles.heroSubtitle}>
-              Revolutionary water monitoring systems that transform aquaculture operations 
-              with real-time sensor data, predictive analytics, and cloud-based insights 
-              for optimal water quality management.
-            </Text>
-            
-            <View style={styles.heroButtons}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.button,
-                  styles.buttonPrimary,
-                  pressed && { backgroundColor: colors.primary, borderColor: colors.primary },
-                ]}
-                onPress={() => navigation.navigate('Dashboard')}
-              >
-                {({ pressed }) => (
-                  <>
-                    <Text style={[styles.buttonText, pressed && styles.buttonTextOnPrimary]}>View Live Demo</Text>
-                    <MaterialIcons name="arrow-forward" size={20} color={colors.white} style={styles.buttonIcon} />
-                  </>
-                )}
-              </Pressable>
-              
-              <Pressable
-                style={({ pressed }) => [
-                  styles.button,
-                  styles.buttonSecondary,
-                  pressed && { backgroundColor: 'rgba(255,255,255,0.15)' },
-                ]}
-                onPress={() => navigation.navigate('Contact')}
-              >
-                {({ pressed }) => (
-                  <Text style={[styles.buttonTextSecondary, pressed && { opacity: 0.9 }]}>Get Custom Quote</Text>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        </LinearGradient>
-
+       
         {/* Feature Cards */}
         <View style={styles.featuresSection}>
           <View style={styles.featuresGrid}>
@@ -163,9 +110,9 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         {/* Product Showcase */}
         <View style={styles.productSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>TilapiaSync Water Quality Solutions</Text>
+            <Text style={styles.sectionTitle}>Using Your TilapiaSync System</Text>
             <Text style={styles.sectionSubtitle}>
-              Comprehensive water monitoring systems designed for modern aquaculture operations
+              Follow these guidelines to get accurate readings and extend the life of your sensors.
             </Text>
           </View>
 
@@ -177,12 +124,12 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               end={{ x: 1, y: 0 }}
             >
               <View style={styles.productHeaderContent}>
-                <MaterialIcons name="opacity" size={40} color={colors.white} />
-                <Text style={styles.productTitle}>Water Quality Monitoring System</Text>
+                <MaterialIcons name="menu-book" size={40} color={colors.white} />
+                <Text style={styles.productTitle}>Quick Start Checklist</Text>
               </View>
               <Text style={styles.productSubtitle}>
-                Comprehensive sensor network for real-time water parameter tracking with 
-                advanced analytics and cloud integration
+                Complete this checklist when setting up a new pond or tank to ensure accurate, 
+                stable readings from day one.
               </Text>
             </LinearGradient>
 
@@ -199,7 +146,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               </View>
 
               <View style={styles.featuresContainer}>
-                <Text style={styles.featuresTitle}>Key Features</Text>
+                <Text style={styles.featuresTitle}>Operational Best Practices</Text>
                 <View style={styles.featuresGrid2}>
                   {waterFeatures.map((feature, index) => (
                     <View key={index} style={styles.featureItem}>
@@ -221,7 +168,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 >
                   {() => (
                     <>
-                      <Text style={styles.buttonTextOnPrimary}>Live Water Monitoring</Text>
+                      <Text style={styles.buttonTextOnPrimary}>View Live Sensor Readings</Text>
                       <MaterialIcons name="arrow-forward" size={16} color={colors.white} style={styles.buttonIcon} />
                     </>
                   )}
@@ -237,7 +184,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 >
                   {() => (
                     <>
-                      <Text style={styles.buttonTextOnPrimary}>View Dashboard</Text>
+                      <Text style={styles.buttonTextOnPrimary}>Download Reports & History</Text>
                       <MaterialIcons name="insights" size={16} color={colors.white} style={styles.buttonIcon} />
                     </>
                   )}
@@ -255,10 +202,11 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           end={{ x: 1, y: 0 }}
         >
           <Text style={styles.ctaTitle}>
-            Ready to Transform Your Aquaculture Operation?
+            Need More Help With Your Device?
           </Text>
           <Text style={styles.ctaSubtitle}>
-            Join leading aquaculture farms using our IoT solutions to increase efficiency and profitability
+            If you still have questions after reading this guide, contact our support team for step‑by‑step
+            assistance with installation, calibration, or troubleshooting.
           </Text>
           <View style={styles.ctaButtons}>
             <Pressable
@@ -270,7 +218,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               onPress={() => navigation.navigate('Contact')}
             >
               {({ pressed }) => (
-                <Text style={[styles.buttonCtaText, pressed && styles.buttonTextOnPrimary]}>Schedule Consultation</Text>
+                <Text style={[styles.buttonCtaText, pressed && styles.buttonTextOnPrimary]}>Contact Support</Text>
               )}
             </Pressable>
 
@@ -283,7 +231,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               onPress={() => navigation.navigate('Dashboard')}
             >
               {({ pressed }) => (
-                <Text style={[styles.buttonCtaOutlineText, pressed && { opacity: 0.9 }]}>Try Live Demo</Text>
+                <Text style={[styles.buttonCtaOutlineText, pressed && { opacity: 0.9 }]}>View Data Dashboard</Text>
               )}
             </Pressable>
           </View>

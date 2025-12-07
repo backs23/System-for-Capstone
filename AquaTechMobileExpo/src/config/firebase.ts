@@ -6,13 +6,14 @@
 
 import firebase from '@react-native-firebase/app';
 import auth from '@react-native-firebase/auth';
-
+import database from '@react-native-firebase/database';
 // Firebase config - ensure this matches your Firebase project
 // Note: With React Native Firebase, the native config files (google-services.json/GoogleService-Info.plist) 
 // are the primary source of configuration when using native builds
 const firebaseConfig = {
   apiKey: 'AIzaSyBwl9U2werI16C9zRhzb3WMHqFGjrJrm68',
   authDomain: 'aquatech-monitoring.firebaseapp.com',
+  databaseURL: "https://aquatech-monitoring-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: 'aquatech-monitoring',
   storageBucket: 'aquatech-monitoring.firebasestorage.app',
   messagingSenderId: '104313651336586858862',
@@ -28,5 +29,6 @@ if (!firebase.apps.length) {
 }
 
 // Export auth instance - React Native Firebase handles persistence automatically
+export const db = database();
 export { auth };
 export default firebase;

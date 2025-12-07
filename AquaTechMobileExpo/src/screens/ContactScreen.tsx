@@ -66,17 +66,12 @@ const ContactScreen: React.FC = () => {
             </View>
           </View>
 
-          <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>Business Hours</Text>
-            <Text style={styles.infoText}>Monday - Friday: 9:00 AM - 6:00 PM</Text>
-            <Text style={styles.infoText}>Saturday: 10:00 AM - 4:00 PM</Text>
-            <Text style={styles.infoText}>Sunday: Closed</Text>
-          </View>
+        
 
           <View style={styles.infoCard}>
             <Text style={styles.infoTitle}>Emergency Support</Text>
             <Text style={styles.infoText}>
-              For critical system issues outside business hours, please contact our emergency hotline:
+              For critical system issues, please contact our emergency hotline:
             </Text>
             <TouchableOpacity style={styles.emergencyButton} onPress={() => handlePress('phone', ' 0968 204 1378')}>
               <MaterialIcons name="warning" size={20} color={colors.white} />

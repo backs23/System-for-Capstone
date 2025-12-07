@@ -12,7 +12,7 @@ export const API_CONFIG = {
     authSignup: '/auth/signup',
     authResetPassword: '/auth/reset-password',
 
-    sensorCurrent: '/sensors/current',
+    sensorCurrent: '/tilapiaTank',
     chartData: '/sensors/chart',
     alerts: '/alerts',
     activityLogs: '/activity-logs',
