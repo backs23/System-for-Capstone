@@ -1,33 +1,41 @@
-# Firebase Configuration Files (NEVER commit these!)
-firebase-service-account.json
-firebase-web-config.json
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-.pytest_cache/
+# dependencies
+node_modules/
 
-# Virtual Environment
-venv/
-env/
-.env
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
 
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
 
-# Logs
-*.log
+# Metro
+.metro-health-check*
 
-# Local user data
-fallback_users.json
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 
-# OS
+# macOS
 .DS_Store
-Thumbs.db
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android

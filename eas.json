@@ -1,8 +1,8 @@
 {
   "cli": {
     "version": ">= 3.0.0",
-    "appVersionSource": "remote",
-    "appRoot": "aquatechmobileexpo"
+    "appVersionSource": "remote"
+  
   },
   "build": {
     "development": {
