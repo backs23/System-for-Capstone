@@ -1,0 +1,7 @@
+# This file tells EAS Build which files to exclude
+# It overrides .gitignore for EAS builds
+# By being empty or minimal, we ensure android/ is included
+
+# Only ignore these for EAS
+node_modules/
+.expo/
