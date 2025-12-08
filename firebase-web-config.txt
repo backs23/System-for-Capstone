@@ -1,9 +1,0 @@
-{
-  "apiKey": "AIzaSyBwl9U2werI16C9zRhzb3WMHqFGjrJrm68",
-  "authDomain": "aquatech-monitoring.firebaseapp.com",
-  "projectId": "aquatech-monitoring",
-  "storageBucket": "aquatech-monitoring.appspot.com",
-  "messagingSenderId": "104313651336586858862",
-  "appId": "1:104313651336586858862:web:a123b456c789d012e345f67",
-  "measurementId": "G-ABC123DEF45"
-}
