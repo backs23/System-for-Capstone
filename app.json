@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.monitoring.tilapiasync",
-      "googleServicesFile":"./GoogleService-info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "package": "com.monitoring.tilapiasync",

@@ -9,11 +9,17 @@ import { SensorReading } from '../services/apiService';
 
 // Toggle this to quickly see filled graphs without a real backend
 const USE_MOCK_HISTORY = false;
-// Realtime Database path where your latest sensor reading is stored
-// Example expected shape under this path:
-// { temperature, turbidity, ammonia, dissolved_oxygen, ph_level, conductivity, timestamp }
-// or an object of readings where the last key is the newest entry.
-const SENSOR_DB_PATH = '/tilapiaTank';
+// Realtime Database path. Root is expected to look like:
+// {
+//   "lastUpdated": "2025-12-05T08:30:00.000Z",
+//   "tilapiaTank": {
+//     "ammonia": 0.1,
+//     "lastUpdated": "1128519", // optional tank-level timestamp/sequence
+//     "temperature": 31.81
+//   }
+// }
+// We read temperature/ammonia from `tilapiaTank` and the ISO timestamp from root `lastUpdated`.
+const SENSOR_DB_PATH = '/';
 
 interface SensorDataProps {
   title: string;
@@ -136,29 +142,30 @@ const WaterMonitoringScreen: React.FC = () => {
       ref = dbInstance.ref(SENSOR_DB_PATH);
       listener = ref.on('value', (snapshot: any) => {
         const raw = snapshot.val();
-        if (!raw) return;
+        if (!raw || !raw.tilapiaTank) return;
 
-        // If /tilapiaTank contains multiple child readings, pick the last one.
-        let value: any = raw;
-        if (raw && typeof raw === 'object' && !('temperature' in raw)) {
-          const keys = Object.keys(raw);
-          if (!keys.length) return;
-          const lastKey = keys.sort().at(-1)!;
-          value = raw[lastKey];
+        const tank = raw.tilapiaTank;
+
+        let timestamp = new Date().toISOString();
+        if (typeof raw.lastUpdated === 'string') {
+          // Prefer the root-level ISO timestamp if available
+          timestamp = raw.lastUpdated;
+        } else if (typeof tank.lastUpdated === 'string') {
+          // Fallback: tank-level lastUpdated (may be a sequence/number string)
+          timestamp = tank.lastUpdated;
         }
 
         const latest: SensorReading = {
-          // Only fields expected from Realtime DB: temperature, turbidity, ammonia, lastUpdated
-          temperature: Number(value.temperature ?? 24.5),
-          turbidity: Number(value.turbidity ?? 2.1),
-          ammonia: Number(value.ammonia ?? 0.15),
+          temperature: Number(tank.temperature ?? 24.5),
+          turbidity: Number(tank.turbidity ?? 2.1),
+          ammonia: Number(tank.ammonia ?? 0.15),
           // These extra fields are kept just to satisfy the SensorReading type and other screens;
           // they are not used on the Water Monitoring screen.
           dissolved_oxygen: 0,
           ph_level: 0,
           conductivity: 0,
-          // DB uses `lastUpdated` instead of `timestamp`
-          timestamp: String(value.lastUpdated ?? new Date().toISOString()),
+          // Use `timestamp` in the app, mapped from Firebase's `lastUpdated` fields
+          timestamp,
         };
 
         setReading(latest);
@@ -429,6 +436,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.bold,
     color: colors.white,
     marginTop: spacing.md,
+    textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: typography.fontSize.base,

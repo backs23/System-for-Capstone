@@ -29,6 +29,6 @@ if (!firebase.apps.length) {
 }
 
 // Export auth instance - React Native Firebase handles persistence automatically
-export const db = database();
+export {database};
 export { auth };
 export default firebase;

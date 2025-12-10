@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
+import database from '@react-native-firebase/database';
 import { colors, commonStyles, spacing, typography, borderRadius, shadows, screen } from '../styles/commonStyles';
 
 interface MetricCardProps {
@@ -34,6 +35,17 @@ interface ActivityRowProps {
   status: string;
   details: string;
 }
+
+// Realtime Database root path. Expected JSON shape:
+// {
+//   "lastUpdated": "2025-12-05T08:30:00.000Z",
+//   "tilapiaTank": {
+//     "ammonia": 0.1,
+//     "lastUpdated": "1128519",
+//     "temperature": 31.81
+//   }
+// }
+const SENSOR_DB_PATH = '/';
 
 const MetricCard: React.FC<MetricCardProps> = ({
   title,
@@ -135,8 +147,56 @@ const DashboardScreen: React.FC = () => {
     temperature: '24.5',
     turbidity: '2.1',
     ammonia: '0.15',
-    timestamp: new Date().toLocaleTimeString(),
+    timestamp: new Date().toISOString(),
   });
+
+  // Subscribe to Firebase Realtime Database for current tank status
+  useEffect(() => {
+    let ref: any | null = null;
+    let listener: any | null = null;
+
+    try {
+      const dbInstance = database();
+      if (!dbInstance || typeof dbInstance.ref !== 'function') {
+        console.warn('[Dashboard] Realtime Database instance not available; using mock data.');
+        return;
+      }
+
+      ref = dbInstance.ref(SENSOR_DB_PATH);
+      listener = ref.on('value', (snapshot: any) => {
+        const raw = snapshot.val();
+        if (!raw || !raw.tilapiaTank) return;
+
+        const tank = raw.tilapiaTank;
+
+        const temperature = Number(tank.temperature ?? 24.5);
+        const turbidity = Number(tank.turbidity ?? 2.1);
+        const ammonia = Number(tank.ammonia ?? 0.15);
+
+        let timestamp = new Date().toISOString();
+        if (typeof raw.lastUpdated === 'string') {
+          timestamp = raw.lastUpdated;
+        } else if (typeof tank.lastUpdated === 'string') {
+          timestamp = tank.lastUpdated;
+        }
+
+        setCurrentData({
+          temperature: temperature.toFixed(1),
+          turbidity: turbidity.toFixed(1),
+          ammonia: ammonia.toFixed(2),
+          timestamp,
+        });
+      });
+    } catch (e) {
+      console.warn('[Dashboard] Failed to attach Firebase DB listener; using mock data.', e);
+    }
+
+    return () => {
+      if (ref && typeof ref.off === 'function' && listener) {
+        ref.off('value', listener);
+      }
+    };
+  }, []);
 
   // Mock chart data
   const chartData = {
@@ -200,16 +260,10 @@ const DashboardScreen: React.FC = () => {
   ];
 
   const onRefresh = React.useCallback(() => {
+    // With a realtime subscription, a manual refresh just shows the spinner briefly.
     setRefreshing(true);
-    // Simulate data refresh
-    setTimeout(() => {
-      setCurrentData({
-        ...currentData,
-        timestamp: new Date().toLocaleTimeString(),
-      });
-      setRefreshing(false);
-    }, 2000);
-  }, [currentData]);
+    setTimeout(() => setRefreshing(false), 800);
+  }, []);
 
   const controlButtons = [
     { title: 'Test Water', icon: 'science', color: colors.success },
