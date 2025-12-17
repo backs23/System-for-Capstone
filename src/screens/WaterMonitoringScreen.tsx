@@ -3,22 +3,33 @@ import { View, Text, ScrollView, StyleSheet, SafeAreaView, RefreshControl } from
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
-import database from '@react-native-firebase/database';
+import { db, ref, onValue, off } from '../config/firebase';
 import { colors, commonStyles, spacing, typography, borderRadius, shadows, screen } from '../styles/commonStyles';
 import { SensorReading } from '../services/apiService';
 
 // Toggle this to quickly see filled graphs without a real backend
 const USE_MOCK_HISTORY = false;
-// Realtime Database path. Root is expected to look like:
-// {
-//   "lastUpdated": "2025-12-05T08:30:00.000Z",
-//   "tilapiaTank": {
-//     "ammonia": 0.1,
-//     "lastUpdated": "1128519", // optional tank-level timestamp/sequence
-//     "temperature": 31.81
-//   }
-// }
-// We read temperature/ammonia from `tilapiaTank` and the ISO timestamp from root `lastUpdated`.
+// Realtime Database path. By default we read from the root ("/") and
+// gracefully handle two common shapes:
+// 1) Root object with nested "tilapiaTank":
+//    {
+//      "lastUpdated": "2025-12-05T08:30:00.000Z",
+//      "tilapiaTank": {
+//        "temperature": 31.81,
+//        "turbidity": 2.1,
+//        "ammonia": 0.1,
+//        "lastUpdated": "1128519"
+//      }
+//    }
+// 2) Root object is already the tank data:
+//    {
+//      "temperature": 31.81,
+//      "turbidity": 2.1,
+//      "ammonia": 0.1,
+//      "lastUpdated": "2025-12-05T08:30:00.000Z"
+//    }
+// If your data is under another node (e.g. "/sensors/tilapiaTank"),
+// change SENSOR_DB_PATH accordingly.
 const SENSOR_DB_PATH = '/';
 
 interface SensorDataProps {
@@ -129,57 +140,40 @@ const WaterMonitoringScreen: React.FC = () => {
   // Wrapped in try/catch so that on Expo Go (where the native module isn't available)
   // the screen will fall back to mock data instead of crashing.
   useEffect(() => {
-    let ref: any | null = null;
-    let listener: any | null = null;
+    const dbRef = ref(db, SENSOR_DB_PATH);
 
-    try {
-      const dbInstance = database();
-      if (!dbInstance || typeof dbInstance.ref !== 'function') {
-        console.warn('[WaterMonitoring] Realtime Database instance not available; using mock data only.');
-        return;
+    onValue(dbRef, (snapshot) => {
+      const raw = snapshot.val();
+      if (!raw || !raw.tilapiaTank) return;
+
+      const tank = raw.tilapiaTank;
+
+      let timestamp = new Date().toISOString();
+      if (typeof raw.lastUpdated === 'string') {
+        timestamp = raw.lastUpdated;
+      } else if (typeof tank.lastUpdated === 'string') {
+        timestamp = tank.lastUpdated;
       }
 
-      ref = dbInstance.ref(SENSOR_DB_PATH);
-      listener = ref.on('value', (snapshot: any) => {
-        const raw = snapshot.val();
-        if (!raw || !raw.tilapiaTank) return;
+      const latest: SensorReading = {
+        temperature: Number(tank.temperature ?? 24.5),
+        turbidity: Number(tank.turbidity ?? 2.1),
+        ammonia: Number(tank.ammonia ?? 0.15),
+        dissolved_oxygen: 0,
+        ph_level: 0,
+        conductivity: 0,
+        timestamp,
+      };
 
-        const tank = raw.tilapiaTank;
-
-        let timestamp = new Date().toISOString();
-        if (typeof raw.lastUpdated === 'string') {
-          // Prefer the root-level ISO timestamp if available
-          timestamp = raw.lastUpdated;
-        } else if (typeof tank.lastUpdated === 'string') {
-          // Fallback: tank-level lastUpdated (may be a sequence/number string)
-          timestamp = tank.lastUpdated;
-        }
-
-        const latest: SensorReading = {
-          temperature: Number(tank.temperature ?? 24.5),
-          turbidity: Number(tank.turbidity ?? 2.1),
-          ammonia: Number(tank.ammonia ?? 0.15),
-          // These extra fields are kept just to satisfy the SensorReading type and other screens;
-          // they are not used on the Water Monitoring screen.
-          dissolved_oxygen: 0,
-          ph_level: 0,
-          conductivity: 0,
-          // Use `timestamp` in the app, mapped from Firebase's `lastUpdated` fields
-          timestamp,
-        };
-
-        setReading(latest);
-        setLastUpdate(new Date(latest.timestamp));
-        pushHistory(latest);
-      });
-    } catch (err) {
-      console.warn('[WaterMonitoring] Failed to attach Firebase DB listener; using mock data only.', err);
-    }
+      setReading(latest);
+      setLastUpdate(new Date(latest.timestamp));
+      pushHistory(latest);
+    }, (error) => {
+      console.warn('[WaterMonitoring] Firebase DB error:', error);
+    });
 
     return () => {
-      if (ref && typeof ref.off === 'function' && listener) {
-        ref.off('value', listener);
-      }
+      off(dbRef);
     };
   }, []);
 
