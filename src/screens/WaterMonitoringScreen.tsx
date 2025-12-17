@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, SafeAreaView, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, SafeAreaView, RefreshControl, Modal, TouchableOpacity, FlatList } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
@@ -148,12 +148,17 @@ const WaterMonitoringScreen: React.FC = () => {
 
       const tank = raw.tilapiaTank;
 
-      let timestamp = new Date().toISOString();
+      // Parse any timestamp from the payload if present (kept for records),
+      // but use the local receipt time for display/labels so the UI updates
+      // each time we receive a new snapshot.
+      let rawTimestamp: string | null = null;
       if (typeof raw.lastUpdated === 'string') {
-        timestamp = raw.lastUpdated;
+        rawTimestamp = raw.lastUpdated;
       } else if (typeof tank.lastUpdated === 'string') {
-        timestamp = tank.lastUpdated;
+        rawTimestamp = tank.lastUpdated;
       }
+
+      const displayTimestamp = new Date().toISOString();
 
       const latest: SensorReading = {
         temperature: Number(tank.temperature ?? 24.5),
@@ -162,11 +167,13 @@ const WaterMonitoringScreen: React.FC = () => {
         dissolved_oxygen: 0,
         ph_level: 0,
         conductivity: 0,
-        timestamp,
+        // store the display timestamp (used by UI labels). If you need the
+        // raw device/server timestamp, it's available in `rawTimestamp`.
+        timestamp: displayTimestamp,
       };
 
       setReading(latest);
-      setLastUpdate(new Date(latest.timestamp));
+      setLastUpdate(new Date(displayTimestamp));
       pushHistory(latest);
     }, (error) => {
       console.warn('[WaterMonitoring] Firebase DB error:', error);
@@ -186,12 +193,12 @@ const WaterMonitoringScreen: React.FC = () => {
       status:
         reading?.temperature == null
           ? ('good' as const)
-          : reading.temperature < 21 || reading.temperature > 28
+          : reading.temperature < 26 || reading.temperature > 30
           ? ('critical' as const)
-          : reading.temperature < 22 || reading.temperature > 26
+          : reading.temperature < 27 || reading.temperature > 29
           ? ('warning' as const)
           : ('good' as const),
-      description: 'Optimal range: 22-26°C',
+      description: 'Optimal range: 26-30°C',
     },
     {
       title: 'Turbidity',
@@ -216,12 +223,12 @@ const WaterMonitoringScreen: React.FC = () => {
       status:
         reading?.ammonia == null
           ? ('critical' as const)
-          : reading.ammonia >= 0.2
-          ? ('critical' as const)
           : reading.ammonia >= 0.1
+          ? ('critical' as const)
+          : reading.ammonia >= 0.08
           ? ('warning' as const)
           : ('good' as const),
-      description: 'Safe level: <0.1 mg/L',
+      description: 'Safe level: <0.08 mg/L',
     },
   ];
 
@@ -239,6 +246,28 @@ const WaterMonitoringScreen: React.FC = () => {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 800);
   }, []);
+
+  // Prepare sparse labels for charts so timestamps don't overlap when many points
+  const makeDisplayLabels = (labels: string[], maxVisible = 6) => {
+    if (labels.length <= maxVisible) return labels;
+    const step = Math.ceil(labels.length / maxVisible);
+    return labels.map((l, i) => (i % step === 0 ? l : ''));
+  };
+
+  const displayLabels = makeDisplayLabels(history.labels, 6);
+
+  // Modal state for zoomed chart view
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMetric, setModalMetric] = useState<'temperature' | 'turbidity' | 'ammonia' | null>(null);
+
+  const openModal = (metric: 'temperature' | 'turbidity' | 'ammonia') => {
+    setModalMetric(metric);
+    setModalVisible(true);
+  };
+  const closeModal = () => {
+    setModalVisible(false);
+    setModalMetric(null);
+  };
 
   return (
     <SafeAreaView style={commonStyles.safeArea}>
@@ -288,38 +317,40 @@ const WaterMonitoringScreen: React.FC = () => {
             {history.temperature.length === 0 ? (
               <Text style={styles.chartEmpty}>Waiting for live data...</Text>
             ) : (
-              <LineChart
-                data={{
-                  labels: history.labels,
-                  datasets: [
-                    {
-                      data: history.temperature,
-                      color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
-                      strokeWidth: 2,
+              <TouchableOpacity activeOpacity={0.9} onPress={() => openModal('temperature')}>
+                <LineChart
+                  data={{
+                    labels: displayLabels,
+                    datasets: [
+                      {
+                        data: history.temperature,
+                        color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
+                        strokeWidth: 2,
+                      },
+                    ],
+                  }}
+                  width={screen.width - 48}
+                  height={200}
+                  chartConfig={{
+                    backgroundColor: colors.white,
+                    backgroundGradientFrom: colors.white,
+                    backgroundGradientTo: colors.white,
+                    decimalPlaces: 1,
+                    color: (opacity = 1) => `rgba(8, 145, 178, ${opacity})`,
+                    labelColor: (opacity = 1) => `rgba(75, 85, 99, ${opacity})`,
+                    style: {
+                      borderRadius: borderRadius.base,
                     },
-                  ],
-                }}
-                width={screen.width - 48}
-                height={200}
-                chartConfig={{
-                  backgroundColor: colors.white,
-                  backgroundGradientFrom: colors.white,
-                  backgroundGradientTo: colors.white,
-                  decimalPlaces: 1,
-                  color: (opacity = 1) => `rgba(8, 145, 178, ${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(75, 85, 99, ${opacity})`,
-                  style: {
-                    borderRadius: borderRadius.base,
-                  },
-                  propsForDots: {
-                    r: '4',
-                    strokeWidth: '2',
-                    stroke: colors.primary,
-                  },
-                }}
-                bezier
-                style={styles.chart}
-              />
+                    propsForDots: {
+                      r: '4',
+                      strokeWidth: '2',
+                      stroke: colors.primary,
+                    },
+                  }}
+                  bezier
+                  style={styles.chart}
+                />
+              </TouchableOpacity>
             )}
           </View>
 
@@ -328,38 +359,40 @@ const WaterMonitoringScreen: React.FC = () => {
             {history.turbidity.length === 0 ? (
               <Text style={styles.chartEmpty}>Waiting for live data...</Text>
             ) : (
-              <LineChart
-                data={{
-                  labels: history.labels,
-                  datasets: [
-                    {
-                      data: history.turbidity,
-                      color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
-                      strokeWidth: 2,
+              <TouchableOpacity activeOpacity={0.9} onPress={() => openModal('turbidity')}>
+                <LineChart
+                  data={{
+                    labels: displayLabels,
+                    datasets: [
+                      {
+                        data: history.turbidity,
+                        color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
+                        strokeWidth: 2,
+                      },
+                    ],
+                  }}
+                  width={screen.width - 48}
+                  height={200}
+                  chartConfig={{
+                    backgroundColor: colors.white,
+                    backgroundGradientFrom: colors.white,
+                    backgroundGradientTo: colors.white,
+                    decimalPlaces: 1,
+                    color: (opacity = 1) => `rgba(8, 145, 178, ${opacity})`,
+                    labelColor: (opacity = 1) => `rgba(75, 85, 99, ${opacity})`,
+                    style: {
+                      borderRadius: borderRadius.base,
                     },
-                  ],
-                }}
-                width={screen.width - 48}
-                height={200}
-                chartConfig={{
-                  backgroundColor: colors.white,
-                  backgroundGradientFrom: colors.white,
-                  backgroundGradientTo: colors.white,
-                  decimalPlaces: 1,
-                  color: (opacity = 1) => `rgba(8, 145, 178, ${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(75, 85, 99, ${opacity})`,
-                  style: {
-                    borderRadius: borderRadius.base,
-                  },
-                  propsForDots: {
-                    r: '4',
-                    strokeWidth: '2',
-                    stroke: colors.primary,
-                  },
-                }}
-                bezier
-                style={styles.chart}
-              />
+                    propsForDots: {
+                      r: '4',
+                      strokeWidth: '2',
+                      stroke: colors.primary,
+                    },
+                  }}
+                  bezier
+                  style={styles.chart}
+                />
+              </TouchableOpacity>
             )}
           </View>
 
@@ -368,38 +401,40 @@ const WaterMonitoringScreen: React.FC = () => {
             {history.ammonia.length === 0 ? (
               <Text style={styles.chartEmpty}>Waiting for live data...</Text>
             ) : (
-              <LineChart
-                data={{
-                  labels: history.labels,
-                  datasets: [
-                    {
-                      data: history.ammonia,
-                      color: (opacity = 1) => `rgba(249, 115, 22, ${opacity})`,
-                      strokeWidth: 2,
+              <TouchableOpacity activeOpacity={0.9} onPress={() => openModal('ammonia')}>
+                <LineChart
+                  data={{
+                    labels: displayLabels,
+                    datasets: [
+                      {
+                        data: history.ammonia,
+                        color: (opacity = 1) => `rgba(249, 115, 22, ${opacity})`,
+                        strokeWidth: 2,
+                      },
+                    ],
+                  }}
+                  width={screen.width - 48}
+                  height={200}
+                  chartConfig={{
+                    backgroundColor: colors.white,
+                    backgroundGradientFrom: colors.white,
+                    backgroundGradientTo: colors.white,
+                    decimalPlaces: 2,
+                    color: (opacity = 1) => `rgba(8, 145, 178, ${opacity})`,
+                    labelColor: (opacity = 1) => `rgba(75, 85, 99, ${opacity})`,
+                    style: {
+                      borderRadius: borderRadius.base,
                     },
-                  ],
-                }}
-                width={screen.width - 48}
-                height={200}
-                chartConfig={{
-                  backgroundColor: colors.white,
-                  backgroundGradientFrom: colors.white,
-                  backgroundGradientTo: colors.white,
-                  decimalPlaces: 2,
-                  color: (opacity = 1) => `rgba(8, 145, 178, ${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(75, 85, 99, ${opacity})`,
-                  style: {
-                    borderRadius: borderRadius.base,
-                  },
-                  propsForDots: {
-                    r: '4',
-                    strokeWidth: '2',
-                    stroke: colors.primary,
-                  },
-                }}
-                bezier
-                style={styles.chart}
-              />
+                    propsForDots: {
+                      r: '4',
+                      strokeWidth: '2',
+                      stroke: colors.primary,
+                    },
+                  }}
+                  bezier
+                  style={styles.chart}
+                />
+              </TouchableOpacity>
             )}
           </View>
 
@@ -409,6 +444,51 @@ const WaterMonitoringScreen: React.FC = () => {
               Data is automatically updated every 30 seconds. Pull down to refresh manually.
             </Text>
           </View>
+          {/* Zoom modal for full-history view */}
+          <Modal visible={modalVisible} animationType="slide" onRequestClose={closeModal}>
+            <SafeAreaView style={[styles.content, { flex: 1 }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+                <Text style={[styles.chartTitle, { flex: 1 }]}>{modalMetric ? `${modalMetric[0].toUpperCase() + modalMetric.slice(1)} — Full History` : 'History'}</Text>
+                <TouchableOpacity onPress={closeModal} style={{ padding: 8 }}>
+                  <Text style={{ color: colors.primary }}>Close</Text>
+                </TouchableOpacity>
+              </View>
+
+              {modalMetric ? (
+                <ScrollView>
+                  <LineChart
+                    data={{ labels: history.labels, datasets: [{ data: history[modalMetric] as number[] }] }}
+                    width={screen.width - 24}
+                    height={320}
+                    chartConfig={{
+                      backgroundColor: colors.white,
+                      backgroundGradientFrom: colors.white,
+                      backgroundGradientTo: colors.white,
+                      decimalPlaces: 2,
+                      color: (opacity = 1) => `rgba(8,145,178,${opacity})`,
+                      labelColor: (opacity = 1) => `rgba(75,85,99,${opacity})`,
+                      propsForDots: { r: '4', strokeWidth: '2', stroke: colors.primary },
+                    }}
+                    bezier
+                    style={{ marginVertical: spacing.sm, borderRadius: borderRadius.base }}
+                  />
+
+                  <View style={{ marginTop: spacing.md }}>
+                    <Text style={{ fontWeight: '600', marginBottom: spacing.sm }}>Data points</Text>
+                    <FlatList
+                      data={history.labels.map((label, i) => ({ key: String(i), label, value: history[modalMetric][i] }))}
+                      renderItem={({ item }) => (
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs }}>
+                          <Text style={{ color: colors.gray[700] }}>{item.label}</Text>
+                          <Text style={{ color: colors.gray[900] }}>{String(item.value)}</Text>
+                        </View>
+                      )}
+                    />
+                  </View>
+                </ScrollView>
+              ) : null}
+            </SafeAreaView>
+          </Modal>
         </View>
       </ScrollView>
     </SafeAreaView>

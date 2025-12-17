@@ -1,5 +1,5 @@
 // DashboardScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { db, ref, onValue, off } from '../config/firebase';
+import { push, get } from 'firebase/database';
 import {
   colors,
   commonStyles,
@@ -20,6 +21,7 @@ import {
   shadows,
   screen,
 } from '../styles/commonStyles';
+import { Share } from 'react-native';
 
 // -------------------- TYPES --------------------
 interface MetricCardProps {
@@ -77,7 +79,12 @@ const MetricCard: React.FC<MetricCardProps> = ({
           {value}
           {unit && <Text style={styles.metricUnit}> {unit}</Text>}
         </Text>
-        <Text style={[styles.metricStatus, { color: colors.success }]}>
+        <Text
+          style={[
+            styles.metricStatus,
+            { color: status === 'Critical' ? colors.error : status === 'Warning' ? colors.warning : status === 'Good' ? colors.success : colors.gray[500] },
+          ]}
+        >
           {status}
         </Text>
       </View>
@@ -168,11 +175,23 @@ const DashboardScreen: React.FC = () => {
     ],
   });
 
+  // guard to avoid processing extremely frequent realtime updates
+  const lastUpdateRef = useRef<number>(0);
+  const mountedRef = useRef(true);
+
   // -------------------- FIREBASE WEB SDK LISTENER --------------------
   useEffect(() => {
+    mountedRef.current = true;
     const dbRef = ref(db, '/');
 
     onValue(dbRef, (snapshot) => {
+      // throttle updates to avoid rapid state churn that may cause re-render issues
+      const now = Date.now();
+      const minInterval = 200; // ms
+      if (now - lastUpdateRef.current < minInterval) return;
+      lastUpdateRef.current = now;
+
+      if (!mountedRef.current) return;
       const raw = snapshot.val();
       if (!raw || !raw.tilapiaTank) {
         setDbStatus('No data received from Firebase');
@@ -184,72 +203,184 @@ const DashboardScreen: React.FC = () => {
       const ammonia = Number(tank.ammonia ?? 0.15);
       const turbidity = Number(tank.turbidity ?? 2.1);
 
-      // Handle timestamp
-      let timestamp = new Date().toISOString();
+      // Preserve any raw timestamp from payload, but use local receipt time
+      // for display so the UI updates on every snapshot delivery.
+      let rawTimestamp: string | null = null;
       if (typeof raw.lastUpdated === 'string') {
-        timestamp = raw.lastUpdated;
+        rawTimestamp = raw.lastUpdated;
       } else if (typeof tank.lastUpdated === 'string') {
-        timestamp = tank.lastUpdated;
+        rawTimestamp = tank.lastUpdated;
       }
 
-      // Update current data for display
+      const displayTimestamp = new Date().toISOString();
+
+      // Update current data for display (use displayTimestamp so UI shows
+      // the time we received the snapshot)
       setCurrentData({
         temperature: temperature.toFixed(1),
         ammonia: ammonia.toFixed(2),
         turbidity: turbidity.toFixed(1),
-        timestamp,
+        timestamp: displayTimestamp,
       });
 
-      // Update chart data with new readings
+      // Update chart data with new readings (use displayTimestamp for label)
       setChartData((prev) => {
         const limit = 10;
-        const timeLabel = new Date(timestamp).toLocaleTimeString([], { 
-          hour: '2-digit', 
-          minute: '2-digit' 
+        const timeLabel = new Date(displayTimestamp).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
         });
-        
+
         const newLabels = [...prev.labels, timeLabel].slice(-limit);
-        
+
         return {
           labels: newLabels,
           datasets: [
-            { 
-              ...prev.datasets[0], 
-              data: [...prev.datasets[0].data, temperature].slice(-limit) 
+            {
+              ...prev.datasets[0],
+              data: [...prev.datasets[0].data, temperature].slice(-limit),
             },
-            { 
-              ...prev.datasets[1], 
-              data: [...prev.datasets[1].data, ammonia].slice(-limit) 
+            {
+              ...prev.datasets[1],
+              data: [...prev.datasets[1].data, ammonia].slice(-limit),
             },
-            { 
-              ...prev.datasets[2], 
-              data: [...prev.datasets[2].data, turbidity].slice(-limit) 
+            {
+              ...prev.datasets[2],
+              data: [...prev.datasets[2].data, turbidity].slice(-limit),
             },
           ],
         };
       });
 
-      setDbStatus(`Live data - Last updated: ${new Date(timestamp).toLocaleTimeString()}`);
+      setDbStatus(`Live data - Last updated: ${new Date(displayTimestamp).toLocaleTimeString()}`);
+
+      // --- generate alerts on status transitions ---
+      try {
+        const newTempStatus = getTempStatus(temperature);
+        const newTurbStatus = getTurbidityStatus(turbidity);
+        const newAmmoStatus = getAmmoniaStatus(ammonia);
+
+        const severityOf = (s: string) => (s.startsWith('Critical') ? 'Critical' : s.startsWith('Warning') ? 'Warning' : 'Good');
+
+        const tempSev = severityOf(newTempStatus);
+        const turbSev = severityOf(newTurbStatus);
+        const ammoSev = severityOf(newAmmoStatus);
+
+        // If severity escalates to Warning/Critical from a less severe state,
+        // push an alert.
+        if (tempSev !== prevStatuses.current.temp) {
+          if (tempSev === 'Warning' || tempSev === 'Critical') {
+            addAlert(tempSev === 'Critical' ? 'critical' : 'warning', `Temperature: ${newTempStatus}`, displayTimestamp);
+          }
+          prevStatuses.current.temp = tempSev;
+        }
+
+        if (turbSev !== prevStatuses.current.turb) {
+          if (turbSev === 'Warning' || turbSev === 'Critical') {
+            addAlert(turbSev === 'Critical' ? 'critical' : 'warning', `Turbidity: ${newTurbStatus}`, displayTimestamp);
+          }
+          prevStatuses.current.turb = turbSev;
+        }
+
+        if (ammoSev !== prevStatuses.current.ammo) {
+          if (ammoSev === 'Warning' || ammoSev === 'Critical') {
+            addAlert(ammoSev === 'Critical' ? 'critical' : 'warning', `Ammonia: ${newAmmoStatus}`, displayTimestamp);
+          }
+          prevStatuses.current.ammo = ammoSev;
+        }
+      } catch (e) {
+        // non-fatal
+      }
+
+      // add a Recent Activity entry summarizing this snapshot
+      try {
+        const details = `T:${temperature.toFixed(1)}°C  A:${ammonia.toFixed(2)}mg/L  Tu:${turbidity.toFixed(1)}NTU`;
+        addActivity('Data Reading', 'Success', details, displayTimestamp);
+      } catch (e) {}
     }, (error) => {
       console.warn('[Dashboard] Firebase DB error:', error);
       setDbStatus('Firebase connection error');
     });
 
     return () => {
+      mountedRef.current = false;
       off(dbRef);
     };
   }, []);
 
   // -------------------- Alerts & Activities --------------------
-  const alerts = [
-    { type: 'success' as const, message: 'All systems operating normally', time: '2 minutes ago' },
-    { type: 'info' as const, message: 'Sensor calibration completed', time: '1 hour ago' },
-    { type: 'warning' as const, message: 'Water temperature slightly elevated', time: '3 hours ago' },
-  ];
+  // Alerts state: newest first
+  const [alerts, setAlerts] = useState<Array<{ id: string; type: 'warning' | 'success' | 'info' | 'critical'; message: string; time: string }>>([]);
+  const [showAllAlerts, setShowAllAlerts] = useState(false);
+  // track previous statuses to avoid spamming repeated alerts
+  const prevStatuses = useRef({ temp: 'Good', turb: 'Good', ammo: 'Good' });
 
-  const activities = [
-    { time: currentData.timestamp, action: 'Data Reading', status: 'Success', details: 'All sensors operational' },
-  ];
+  const [activities, setActivities] = useState<ActivityRowProps[]>([]);
+  const [archivedActivities, setArchivedActivities] = useState<ActivityRowProps[]>([]);
+  const [showAllActivities, setShowAllActivities] = useState(false);
+  const [loadingArchive, setLoadingArchive] = useState(false);
+  const [lastExportUri, setLastExportUri] = useState<string | null>(null);
+
+  const addActivity = async (action: string, status: string, details: string, time?: string) => {
+    const entry: ActivityRowProps = {
+      time: time ?? new Date().toISOString(),
+      action,
+      status,
+      details,
+    };
+
+    setActivities((prev) => {
+      const newList = [entry, ...prev];
+      if (newList.length <= 20) return newList;
+      const keep = newList.slice(0, 20);
+      const removed = newList.slice(20);
+      // persist removed entries to Firebase archive
+      removed.forEach((item) => {
+        try {
+          push(ref(db, 'activityArchive')).then((r) => {
+            // store under generated key
+            // write actual object
+            // using set via push is fine; push returned ref already created value
+          });
+          // we call push with object directly
+          push(ref(db, 'activityArchive'), item).catch(() => {});
+        } catch (e) {}
+      });
+      return keep;
+    });
+  };
+
+  const addAlert = (type: 'warning' | 'success' | 'info' | 'critical', message: string, time: string) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setAlerts((prev) => [{ id, type, message, time }, ...prev]);
+  };
+
+  const deleteAlert = (id: string) => {
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const loadArchivedActivities = async () => {
+    setLoadingArchive(true);
+    try {
+      const snap = await get(ref(db, 'activityArchive'));
+      const val = snap.val();
+      if (!val) {
+        setArchivedActivities([]);
+      } else {
+        const items: ActivityRowProps[] = Object.values(val).map((v: any) => ({
+          time: v.time,
+          action: v.action,
+          status: v.status,
+          details: v.details,
+        }));
+        // newest first: archive push order is chronological, so reverse to newest-first
+        setArchivedActivities(items.reverse());
+      }
+    } catch (e) {
+      setArchivedActivities([]);
+    }
+    setLoadingArchive(false);
+  };
 
   const controlButtons = [
     { title: 'Test Water', icon: 'science', color: colors.success },
@@ -257,6 +388,126 @@ const DashboardScreen: React.FC = () => {
     { title: 'Reset Alerts', icon: 'refresh', color: colors.info },
     { title: 'Export Data', icon: 'download', color: colors.gray[600] },
   ];
+
+  const exportDataCSV = async () => {
+    try {
+      // Build CSV from chartData (labels + datasets)
+      const labels = chartData.labels || [];
+      const tempDs = chartData.datasets[0]?.data || [];
+      const ammoDs = chartData.datasets[1]?.data || [];
+      const turbDs = chartData.datasets[2]?.data || [];
+
+      const rows = ['time,temperature,ammonia,turbidity'];
+      for (let i = 0; i < labels.length; i++) {
+        const row = [
+          `"${labels[i]}"`,
+          tempDs[i] != null ? String(tempDs[i]) : '',
+          ammoDs[i] != null ? String(ammoDs[i]) : '',
+          turbDs[i] != null ? String(turbDs[i]) : '',
+        ].join(',');
+        rows.push(row);
+      }
+
+      const csv = rows.join('\n');
+
+      // Write CSV to a persistent file and share it when native modules are available.
+      const filename = `aquatech-data-${Date.now()}.csv`;
+      try {
+        // Prefer the legacy API to avoid deprecation warnings on older SDKs.
+        const fsModule: any = await (async () => {
+          try {
+            return await import('expo-file-system/legacy');
+          } catch (e) {
+            try { return await import('expo-file-system'); } catch { return null; }
+          }
+        })();
+        // Do NOT import 'expo-sharing' here — importing the module can crash in Expo Go
+        // because the native module may not be available. Use `Share.share` fallback instead.
+        if (fsModule && typeof fsModule.writeAsStringAsync === 'function') {
+          const baseDir = fsModule.documentDirectory ?? fsModule.cacheDirectory ?? '';
+          const uri = baseDir + filename;
+          const enc = fsModule.EncodingType?.UTF8 ?? 'utf8';
+          await fsModule.writeAsStringAsync(uri, csv, { encoding: enc });
+          setLastExportUri(uri);
+          // Try to share the file via the React Native Share API (may accept a `url`).
+          try {
+            await Share.share({ title: 'Exported Data (CSV)', message: 'Export saved: ' + uri, url: uri });
+            setDbStatus('Export saved and shared (via Share)');
+          } catch (e) {
+            // If sharing fails, fallback to sharing CSV text
+            await Share.share({ title: 'Exported Data (CSV)', message: csv });
+            setDbStatus('Export saved (shared as text)');
+          }
+        } else {
+          // No filesystem available in this runtime — fallback to sharing CSV as text
+          await Share.share({ title: 'Exported Data (CSV)', message: csv });
+          setDbStatus('Export shared as text (no filesystem)');
+        }
+      } catch (e) {
+        console.warn('Export failed (fallback)', e);
+        try {
+          await Share.share({ title: 'Exported Data (CSV)', message: csv });
+          setDbStatus('Export shared as text (error path)');
+        } catch (ee) {
+          console.warn('Share fallback also failed', ee);
+          setDbStatus('Export failed');
+        }
+      }
+    } catch (err) {
+      console.warn('Export failed', err);
+      setDbStatus('Export failed');
+    }
+  };
+
+  // --- Derive status strings from numeric sensor values ---
+  const parseNumber = (s?: string) => {
+    if (s == null) return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const getTempStatus = (t: number | null) => {
+    if (t == null) return 'Unknown';
+    if (t < 26 || t > 30) return 'Critical Change water immediately';
+    if (t < 27 || t > 29) return 'Warning';
+    return 'Good';
+  };
+
+  const getTurbidityStatus = (v: number | null) => {
+    if (v == null) return 'Unknown';
+    if (v >= 10) return 'Critical Change water immediately';
+    if (v >= 5) return 'Warning';
+    return 'Good';
+  };
+
+  const getAmmoniaStatus = (v: number | null) => {
+    if (v == null) return 'Unknown';
+    if (v >= 0.1) return 'Critical Change water immediately';
+    if (v >= 0.08) return 'Warning';
+    return 'Good';
+  };
+
+  const tempNum = parseNumber(currentData.temperature);
+  const turbNum = parseNumber(currentData.turbidity);
+  const ammoNum = parseNumber(currentData.ammonia);
+
+  const tempStatus = getTempStatus(tempNum);
+  const turbStatus = getTurbidityStatus(turbNum);
+  const ammoStatus = getAmmoniaStatus(ammoNum);
+  // Sparsify X-axis labels so timestamps don't overlap when many points
+  const makeDisplayLabels = (labels: string[], maxVisible = 6) => {
+    if (!labels || labels.length <= maxVisible) return labels;
+    const step = Math.ceil(labels.length / maxVisible);
+    return labels.map((l, i) => (i % step === 0 ? l : ''));
+  };
+
+  // Toggle: show full labels or sparsified labels
+  const [showFullLabels, setShowFullLabels] = useState(false);
+
+  const displayChartData: ChartData = {
+    ...chartData,
+    labels: showFullLabels ? (chartData.labels || []) : makeDisplayLabels(chartData.labels || [], 6),
+  };
 
   return (
     <SafeAreaView style={commonStyles.safeArea}>
@@ -272,7 +523,7 @@ const DashboardScreen: React.FC = () => {
             title="Temperature"
             value={currentData.temperature}
             unit="°C"
-            status="Optimal Range"
+            status={tempStatus}
             icon="thermostat"
             iconColor="#dc2626"
             bgColor="#fee2e2"
@@ -281,7 +532,7 @@ const DashboardScreen: React.FC = () => {
             title="Turbidity"
             value={currentData.turbidity}
             unit="NTU"
-            status="Clear Water"
+            status={turbStatus}
             icon="waves"
             iconColor="#16a34a"
             bgColor="#dcfce7"
@@ -290,7 +541,7 @@ const DashboardScreen: React.FC = () => {
             title="Ammonia"
             value={currentData.ammonia}
             unit="mg/L"
-            status="Safe Level"
+            status={ammoStatus}
             icon="science"
             iconColor="#ea580c"
             bgColor="#fed7aa"
@@ -300,13 +551,20 @@ const DashboardScreen: React.FC = () => {
         {/* Chart */}
         <View style={styles.chartCard}>
           <Text style={styles.cardTitle}>Water Quality Trends</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: spacing.sm }}>
+            <TouchableOpacity onPress={() => setShowFullLabels(v => !v)} style={{ padding: 6 }}>
+              <Text style={{ color: colors.primary, fontSize: typography.fontSize.sm }}>
+                {showFullLabels ? 'Show Sparse Labels' : 'Show Full Labels'}
+              </Text>
+            </TouchableOpacity>
+          </View>
           {chartData.labels.length === 0 ? (
             <View style={styles.chartEmpty}>
               <Text style={styles.chartEmptyText}>Waiting for live data...</Text>
             </View>
           ) : (
             <LineChart
-              data={chartData}
+              data={displayChartData}
               width={screen.width - 48}
               height={220}
               chartConfig={{
@@ -326,9 +584,28 @@ const DashboardScreen: React.FC = () => {
 
         {/* Alerts */}
         <View style={styles.alertsCard}>
-          <Text style={styles.cardTitle}>System Alerts</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={styles.cardTitle}>System Alerts</Text>
+            <TouchableOpacity onPress={() => setShowAllAlerts(v => !v)} style={{ padding: 6 }}>
+              <Text style={{ color: colors.primary, fontSize: typography.fontSize.sm }}>{showAllAlerts ? 'Show Latest 3' : 'Show All Alerts'}</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.alertsList}>
-            {alerts.map((alert, i) => <AlertItem key={i} {...alert} />)}
+            {(() => {
+              const visible = showAllAlerts ? alerts : alerts.slice(0, 3);
+              return visible.map((alert) => (
+                <View key={alert.id} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={{ flex: 1 }}>
+                    <AlertItem type={alert.type === 'critical' ? 'warning' : (alert.type as any)} message={alert.message} time={new Date(alert.time).toLocaleTimeString()} />
+                  </View>
+                  {showAllAlerts ? (
+                    <TouchableOpacity onPress={() => deleteAlert(alert.id)} style={{ padding: spacing.xs }}>
+                      <MaterialIcons name="delete" size={18} color={colors.error} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ));
+            })()}
           </View>
 
           <View style={styles.controlPanel}>
@@ -338,19 +615,82 @@ const DashboardScreen: React.FC = () => {
                 <TouchableOpacity
                   key={i}
                   style={[styles.controlButton, { backgroundColor: button.color }]}
+                  onPress={() => {
+                    if (button.title === 'Export Data') {
+                      exportDataCSV();
+                    } else if (button.title === 'Reset Alerts') {
+                      setAlerts([]);
+                      setDbStatus('Alerts reset');
+                    } else {
+                      setDbStatus(`${button.title} triggered`);
+                    }
+                  }}
                 >
                   <MaterialIcons name={button.icon as any} size={16} color={colors.white} />
                   <Text style={styles.controlButtonText}>{button.title}</Text>
                 </TouchableOpacity>
               ))}
             </View>
+              {lastExportUri ? (
+                <View style={{ marginTop: spacing.sm }}>
+                  <TouchableOpacity
+                    onPress={async () => {
+                        try {
+                                          const fsModule: any = await (async () => {
+                                            try { return await import('expo-file-system/legacy'); } catch (e) { try { return await import('expo-file-system'); } catch { return null; } }
+                                          })();
+                                          if (fsModule && typeof fsModule.readAsStringAsync === 'function') {
+                                            try {
+                                              // Prefer sharing by URL if supported
+                                              await Share.share({ title: 'Exported Data (CSV)', message: 'Export saved: ' + lastExportUri!, url: lastExportUri! });
+                                            } catch (e) {
+                                              const contents = await fsModule.readAsStringAsync(lastExportUri!);
+                                              await Share.share({ title: 'Exported Data (CSV)', message: contents });
+                                            }
+                                          } else {
+                                            // Last-resort: share a message indicating file exists but cannot be opened
+                                            await Share.share({ title: 'Exported Data (CSV)', message: 'Export file saved but cannot be opened on this client.' });
+                                          }
+                        } catch (e) {
+                          console.warn('Open last export failed', e);
+                        }
+                      }}
+                    style={{ padding: 8 }}
+                  >
+                    <Text style={{ color: colors.primary }}>Open Last Export</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
           </View>
         </View>
 
         {/* Activity */}
         <View style={styles.activityCard}>
-          <Text style={styles.cardTitle}>Recent Activity</Text>
-          {activities.map((item, i) => <ActivityRow key={i} {...item} />)}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={styles.cardTitle}>Recent Activity</Text>
+            <TouchableOpacity onPress={async () => {
+              const next = !showAllActivities;
+              setShowAllActivities(next);
+              if (next) await loadArchivedActivities();
+            }} style={{ padding: 6 }}>
+              <Text style={{ color: colors.primary, fontSize: typography.fontSize.sm }}>{showAllActivities ? 'Show Latest' : 'Show All'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {showAllActivities ? (
+            <View>
+              {loadingArchive ? <Text style={{ color: colors.gray[500] }}>Loading archive...</Text> : (
+                <>
+                  {activities.map((item, i) => <ActivityRow key={`a-${i}`} {...item} />)}
+                  {archivedActivities.map((item, i) => <ActivityRow key={`arch-${i}`} {...item} />)}
+                </>
+              )}
+            </View>
+          ) : (
+            <>
+              {activities.slice(0, 3).map((item, i) => <ActivityRow key={`a-${i}`} {...item} />)}
+            </>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
