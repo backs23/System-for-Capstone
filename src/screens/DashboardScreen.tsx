@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  TextInput,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
@@ -165,6 +166,13 @@ const DashboardScreen: React.FC = () => {
     ammonia: '0.00',
     timestamp: new Date().toISOString(),
   });
+
+  // WiFi Setup State
+  const [wifiSsid, setWifiSsid] = useState('');
+  const [wifiPassword, setWifiPassword] = useState('');
+  const [wifiStatus, setWifiStatus] = useState('');
+  const [showWifiSetup, setShowWifiSetup] = useState(false);
+  const [sendingWifi, setSendingWifi] = useState(false);
 
   const [chartData, setChartData] = useState<ChartData>({
     labels: [],
@@ -382,6 +390,41 @@ const DashboardScreen: React.FC = () => {
     setLoadingArchive(false);
   };
 
+  const sendWifiCredentials = async () => {
+    if (!wifiSsid.trim()) {
+      setWifiStatus('Please enter SSID');
+      return;
+    }
+    if (!wifiPassword.trim()) {
+      setWifiStatus('Please enter password');
+      return;
+    }
+
+    setSendingWifi(true);
+    setWifiStatus('Sending credentials...');
+
+    try {
+      const body = `ssid=${encodeURIComponent(wifiSsid)}&password=${encodeURIComponent(wifiPassword)}`;
+      const res = await fetch('http://192.168.4.1/setWifi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+      });
+      const text = await res.text();
+      setWifiStatus(text || 'WiFi credentials sent successfully');
+      // Clear fields on success
+      setTimeout(() => {
+        setWifiSsid('');
+        setWifiPassword('');
+        setShowWifiSetup(false);
+      }, 2000);
+    } catch (e) {
+      setWifiStatus('Failed to send WiFi credentials. Make sure you are connected to ESP32 AP.');
+    } finally {
+      setSendingWifi(false);
+    }
+  };
+
   const controlButtons = [
     { title: 'Test Water', icon: 'science', color: colors.success },
     { title: 'Calibrate Sensors', icon: 'tune', color: '#8b5cf6' },
@@ -515,6 +558,106 @@ const DashboardScreen: React.FC = () => {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Dashboard</Text>
           <Text style={styles.headerSubtitle}>{dbStatus}</Text>
+        </View>
+
+        {/* WiFi Setup Card */}
+        <View style={styles.wifiCard}>
+          <TouchableOpacity
+            onPress={() => setShowWifiSetup(v => !v)}
+            style={styles.wifiHeader}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialIcons name="wifi" size={24} color={colors.primary} />
+              <Text style={[styles.cardTitle, { marginBottom: 0, marginLeft: spacing.sm }]}>
+                WiFi Configuration
+              </Text>
+            </View>
+            <MaterialIcons
+              name={showWifiSetup ? 'expand-less' : 'expand-more'}
+              size={24}
+              color={colors.gray[600]}
+            />
+          </TouchableOpacity>
+
+          {showWifiSetup && (
+            <View style={styles.wifiContent}>
+              <Text style={styles.wifiDescription}>
+                Configure ESP32 WiFi credentials to connect to your network
+              </Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Network Name (SSID)</Text>
+                <View style={styles.inputContainer}>
+                  <MaterialIcons name="wifi" size={20} color={colors.gray[400]} style={styles.inputIcon} />
+                  <TextInput
+                    placeholder="Enter WiFi SSID"
+                    value={wifiSsid}
+                    onChangeText={setWifiSsid}
+                    style={styles.textInput}
+                    placeholderTextColor={colors.gray[400]}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Password</Text>
+                <View style={styles.inputContainer}>
+                  <MaterialIcons name="lock" size={20} color={colors.gray[400]} style={styles.inputIcon} />
+                  <TextInput
+                    placeholder="Enter WiFi password"
+                    value={wifiPassword}
+                    onChangeText={setWifiPassword}
+                    secureTextEntry
+                    style={styles.textInput}
+                    placeholderTextColor={colors.gray[400]}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={sendWifiCredentials}
+                disabled={sendingWifi}
+                style={[
+                  styles.wifiButton,
+                  sendingWifi && styles.wifiButtonDisabled
+                ]}
+              >
+                <MaterialIcons
+                  name={sendingWifi ? 'hourglass-empty' : 'send'}
+                  size={20}
+                  color={colors.white}
+                />
+                <Text style={styles.wifiButtonText}>
+                  {sendingWifi ? 'Sending...' : 'Send to ESP32'}
+                </Text>
+              </TouchableOpacity>
+
+              {wifiStatus ? (
+                <View style={[
+                  styles.wifiStatusContainer,
+                  wifiStatus.includes('Failed') || wifiStatus.includes('Please')
+                    ? styles.wifiStatusError
+                    : styles.wifiStatusSuccess
+                ]}>
+                  <MaterialIcons
+                    name={wifiStatus.includes('Failed') || wifiStatus.includes('Please') ? 'error' : 'check-circle'}
+                    size={18}
+                    color={wifiStatus.includes('Failed') || wifiStatus.includes('Please') ? colors.error : colors.success}
+                  />
+                  <Text style={[
+                    styles.wifiStatusText,
+                    { color: wifiStatus.includes('Failed') || wifiStatus.includes('Please') ? colors.error : colors.success }
+                  ]}>
+                    {wifiStatus}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          )}
         </View>
 
         {/* Metrics */}
@@ -713,18 +856,18 @@ const styles = StyleSheet.create({
   metricValue: { fontSize: typography.fontSize['2xl'], fontWeight: typography.fontWeight.bold, color: colors.gray[900], marginVertical: spacing.xs },
   metricUnit: { fontSize: typography.fontSize.lg, color: colors.gray[500] },
   metricStatus: { fontSize: typography.fontSize.sm, fontWeight: typography.fontWeight.medium },
-  chartCard: { backgroundColor: colors.white, borderRadius: borderRadius.lg, padding: spacing.md, marginBottom: spacing.lg, ...shadows.medium },
+  chartCard: { backgroundColor: colors.white, borderRadius: borderRadius.lg, padding: spacing.md, marginHorizontal: spacing.md, marginBottom: spacing.lg, ...shadows.medium },
   cardTitle: { fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold, color: colors.gray[900], marginBottom: spacing.md },
   chart: { marginVertical: spacing.sm, borderRadius: borderRadius.base },
   chartEmpty: { height: 220, justifyContent: 'center', alignItems: 'center' },
   chartEmptyText: { fontSize: typography.fontSize.sm, color: colors.gray[500] },
-  alertsCard: { backgroundColor: colors.white, borderRadius: borderRadius.lg, padding: spacing.md, ...shadows.medium },
+  alertsCard: { backgroundColor: colors.white, borderRadius: borderRadius.lg, padding: spacing.md, marginHorizontal: spacing.md, marginBottom: spacing.lg, ...shadows.medium },
   alertsList: { marginBottom: spacing.lg },
   alertItem: { flexDirection: 'row', alignItems: 'flex-start', padding: spacing.sm, borderRadius: borderRadius.base, borderWidth: 1, marginBottom: spacing.sm },
   alertContent: { marginLeft: spacing.sm, flex: 1 },
   alertMessage: { fontSize: typography.fontSize.sm, fontWeight: typography.fontWeight.medium, marginBottom: 2 },
   alertTime: { fontSize: typography.fontSize.xs },
-  controlPanel: { borderTopWidth: 1, borderTopColor: colors.gray[200], paddingTop: spacing.md },
+  controlPanel: { borderTopWidth: 1, borderTopColor: colors.gray[200], paddingTop: spacing.md, marginBottom: spacing.md },
   controlTitle: { fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold, color: colors.gray[900], marginBottom: spacing.sm },
   controlGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   controlButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.base, width: '48%', marginBottom: spacing.sm },
@@ -736,6 +879,23 @@ const styles = StyleSheet.create({
   statusBadge: { paddingHorizontal: spacing.xs, paddingVertical: 2, borderRadius: borderRadius.full, flex: 1, alignItems: 'center' },
   statusText: { fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.semibold },
   activityDetails: { flex: 1, fontSize: typography.fontSize.sm, color: colors.gray[500] },
+  // WiFi Setup Styles
+  wifiCard: { backgroundColor: colors.white, borderRadius: borderRadius.lg, marginHorizontal: spacing.md, marginBottom: spacing.lg, ...shadows.medium, overflow: 'hidden' },
+  wifiHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md },
+  wifiContent: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  wifiDescription: { fontSize: typography.fontSize.sm, color: colors.gray[600], marginBottom: spacing.lg, lineHeight: 20 },
+  inputGroup: { marginBottom: spacing.md },
+  inputLabel: { fontSize: typography.fontSize.sm, fontWeight: typography.fontWeight.semibold, color: colors.gray[700], marginBottom: spacing.xs },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.gray[50], borderWidth: 1, borderColor: colors.gray[300], borderRadius: borderRadius.base, paddingHorizontal: spacing.sm },
+  inputIcon: { marginRight: spacing.xs },
+  textInput: { flex: 1, paddingVertical: spacing.sm, fontSize: typography.fontSize.base, color: colors.gray[900] },
+  wifiButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, paddingVertical: spacing.md, borderRadius: borderRadius.base, marginTop: spacing.sm },
+  wifiButtonDisabled: { backgroundColor: colors.gray[400] },
+  wifiButtonText: { color: colors.white, fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold, marginLeft: spacing.xs },
+  wifiStatusContainer: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, padding: spacing.sm, borderRadius: borderRadius.base },
+  wifiStatusSuccess: { backgroundColor: '#dcfce7', borderWidth: 1, borderColor: '#86efac' },
+  wifiStatusError: { backgroundColor: '#fee2e2', borderWidth: 1, borderColor: '#fca5a5' },
+  wifiStatusText: { fontSize: typography.fontSize.sm, marginLeft: spacing.xs, flex: 1 },
 });
 
 export default DashboardScreen;
