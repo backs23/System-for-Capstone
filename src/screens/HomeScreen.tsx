@@ -33,53 +33,26 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description }) =
   </View>
 );
 
-const SensorItem: React.FC<SensorItemProps> = ({ icon, name, description }) => (
-  <View style={styles.sensorItem}>
-    <View style={styles.sensorIconContainer}>
-      <MaterialIcons name={icon as any} size={16} color={colors.primary} />
-    </View>
-    <View style={styles.sensorInfo}>
-      <Text style={styles.sensorName}>{name}</Text>
-      <Text style={styles.sensorDescription}>{description}</Text>
-    </View>
-  </View>
-);
-
 const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   // Quick overview cards for the device user guide
   const features = [
     {
       icon: 'settings-input-component',
       title: '1. Install the Device',
-      description: 'Mount the TilapiaSync probe vertically in the tank and keep sensors fully submerged.',
+      description: 'Mount the TilapiaSync probe vertically. Submerge the temperature sensor in water, and hang the ammonia and turbidity sensors above the tank near the water surface.',
+
     },
     {
       icon: 'wifi',
       title: '2. Connect to Wi‑Fi',
-      description: 'Power on the controller, open the TilapiaSync app, and follow the on-screen Wi‑Fi wizard.',
+      description: 'Turn on the device, open the TilapiaSync app, then configure the ESP32 to join your Wi-Fi from dashboard.',
     },
-    {
-      icon: 'science',
-      title: '3. Calibrate Sensors',
-      description: 'Run the guided calibration for temperature, turbidity, and ammonia before first use.',
-    },
-    {
-      icon: 'notifications-active',
-      title: '4. Enable Alerts',
-      description: 'Set notification thresholds so you are alerted when water quality leaves safe ranges.',
-    },
-  ];
-
-  // Key hardware parts the farmer interacts with
-  const sensors = [
-    { icon: 'sensors', name: 'Probe Assembly', desc: 'Combined temperature, turbidity, and ammonia sensor.' },
-    { icon: 'router', name: 'Controller Box', desc: 'Connects to Wi‑Fi and sends readings to the TilapiaSync app.' },
-    { icon: 'battery-charging-full', name: 'Power Supply', desc: 'Use the supplied adapter and keep away from splashes.' },
+    
   ];
 
   // Step-by-step usage guidance bullets
   const waterFeatures = [
-    'Check the dashboard at least twice a day for turbidity and temperature trends.',
+    'Check the dashboard at least twice a day for temperature,turbidity and ammmonia trends.',
     'Respond to \"Warning\" and \"Critical\" alerts immediately to avoid fish stress.',
     'Clean the probe weekly with fresh water—never use soap or chemicals.',
     'Recalibrate sensors every 30 days or after moving the device to a new tank.',
@@ -128,23 +101,12 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <Text style={styles.productTitle}>Quick Start Checklist</Text>
               </View>
               <Text style={styles.productSubtitle}>
-                Complete this checklist when setting up a new pond or tank to ensure accurate, 
+                Complete this checklist when setting up a tank to ensure accurate, 
                 stable readings from day one.
               </Text>
             </LinearGradient>
 
             <View style={styles.productContent}>
-              <View style={styles.sensorsGrid}>
-                {sensors.map((sensor, index) => (
-                  <SensorItem
-                    key={index}
-                    icon={sensor.icon}
-                    name={sensor.name}
-                    description={sensor.desc}
-                  />
-                ))}
-              </View>
-
               <View style={styles.featuresContainer}>
                 <Text style={styles.featuresTitle}>Operational Best Practices</Text>
                 <View style={styles.featuresGrid2}>
@@ -206,7 +168,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Text>
           <Text style={styles.ctaSubtitle}>
             If you still have questions after reading this guide, contact our support team for step‑by‑step
-            assistance with installation, calibration, or troubleshooting.
+            assistance with installation or troubleshooting.
           </Text>
           <View style={styles.ctaButtons}>
             <Pressable
@@ -457,43 +419,6 @@ const styles = StyleSheet.create({
   },
   
   // Sensors
-  sensorsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-  sensorItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    width: '48%',
-    marginBottom: spacing.md,
-  },
-  sensorIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: borderRadius.base,
-    backgroundColor: colors.primaryLight + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  sensorInfo: {
-    flex: 1,
-  },
-  sensorName: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-    color: colors.gray[900],
-    marginBottom: 2,
-  },
-  sensorDescription: {
-    fontSize: typography.fontSize.xs,
-    color: colors.gray[500],
-    lineHeight: typography.fontSize.xs * 1.3,
-  },
-  
-  // Features Container
   featuresContainer: {
     backgroundColor: colors.gray[50],
     borderRadius: borderRadius.base,

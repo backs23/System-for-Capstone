@@ -405,21 +405,42 @@ const DashboardScreen: React.FC = () => {
 
     try {
       const body = `ssid=${encodeURIComponent(wifiSsid)}&password=${encodeURIComponent(wifiPassword)}`;
+      
+      // Add timeout to the fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const res = await fetch('http://192.168.4.1/setWifi', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body,
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
+      
       const text = await res.text();
-      setWifiStatus(text || 'WiFi credentials sent successfully');
-      // Clear fields on success
-      setTimeout(() => {
-        setWifiSsid('');
-        setWifiPassword('');
-        setShowWifiSetup(false);
-      }, 2000);
-    } catch (e) {
-      setWifiStatus('Failed to send WiFi credentials. Make sure you are connected to ESP32 AP.');
+      console.log('ESP32 Response:', text);
+      
+      if (res.ok) {
+        setWifiStatus(text || 'WiFi credentials sent successfully! ESP32 will restart.');
+        // Clear fields on success
+        setTimeout(() => {
+          setWifiSsid('');
+          setWifiPassword('');
+          setShowWifiSetup(false);
+          setWifiStatus('');
+        }, 3000);
+      } else {
+        setWifiStatus(`Error: ${text || 'Failed to configure WiFi'}`);
+      }
+    } catch (e: any) {
+      console.error('WiFi send error:', e);
+      if (e.name === 'AbortError') {
+        setWifiStatus('Request timeout. Make sure you are connected to "AquaTech-Setup" WiFi network.');
+      } else {
+        setWifiStatus('Failed to send WiFi credentials. Make sure you are connected to ESP32 AP (AquaTech-Setup).');
+      }
     } finally {
       setSendingWifi(false);
     }

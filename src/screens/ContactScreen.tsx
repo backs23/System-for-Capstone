@@ -60,7 +60,7 @@ const ContactScreen: React.FC = () => {
               <View style={styles.contactInfo}>
                 <Text style={styles.contactLabel}>Address</Text>
                 <Text style={styles.contactValue}>
-                  67 Campusong,{'\n'}Carmen{'\n'}United States
+                  Campusong,{'\n'}Borbon{'\n'}Cebu City
                 </Text>
               </View>
             </View>

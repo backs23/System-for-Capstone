@@ -40,4 +40,13 @@ yarn-error.*
 /ios
 /android
 firebase-service-account.txt
-firebase-service-account.txt
+
+# Arduino and ESP32 code
+*.ino
+arduino_*.ino
+esp32_*.ino
+arduino_with_turbidity.ino
+esp32_code_updated.ino
+
+# Documentation files (optional - remove if you want to track these)
+WIFI_SETUP_VERIFICATION.md
