@@ -23,6 +23,9 @@ import {
   screen,
 } from '../styles/commonStyles';
 import { Share } from 'react-native';
+import * as XLSX from 'xlsx';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library';
 
 // -------------------- TYPES --------------------
 interface MetricCardProps {
@@ -190,7 +193,7 @@ const DashboardScreen: React.FC = () => {
   // -------------------- FIREBASE WEB SDK LISTENER --------------------
   useEffect(() => {
     mountedRef.current = true;
-    const dbRef = ref(db, '/');
+    const dbRef = ref(db, '/tilapiaTank');
 
     onValue(dbRef, (snapshot) => {
       // throttle updates to avoid rapid state churn that may cause re-render issues
@@ -200,30 +203,19 @@ const DashboardScreen: React.FC = () => {
       lastUpdateRef.current = now;
 
       if (!mountedRef.current) return;
-      const raw = snapshot.val();
-      if (!raw || !raw.tilapiaTank) {
+      const tank = snapshot.val();
+      if (!tank) {
         setDbStatus('No data received from Firebase');
         return;
       }
 
-      const tank = raw.tilapiaTank;
       const temperature = Number(tank.temperature ?? 24.5);
       const ammonia = Number(tank.ammonia ?? 0.15);
       const turbidity = Number(tank.turbidity ?? 2.1);
 
-      // Preserve any raw timestamp from payload, but use local receipt time
-      // for display so the UI updates on every snapshot delivery.
-      let rawTimestamp: string | null = null;
-      if (typeof raw.lastUpdated === 'string') {
-        rawTimestamp = raw.lastUpdated;
-      } else if (typeof tank.lastUpdated === 'string') {
-        rawTimestamp = tank.lastUpdated;
-      }
-
       const displayTimestamp = new Date().toISOString();
 
-      // Update current data for display (use displayTimestamp so UI shows
-      // the time we received the snapshot)
+      // Update current data for display
       setCurrentData({
         temperature: temperature.toFixed(1),
         ammonia: ammonia.toFixed(2),
@@ -392,58 +384,74 @@ const DashboardScreen: React.FC = () => {
 
   const sendWifiCredentials = async () => {
     if (!wifiSsid.trim()) {
-      setWifiStatus('Please enter SSID');
+      setWifiStatus('❌ Please enter SSID');
       return;
     }
     if (!wifiPassword.trim()) {
-      setWifiStatus('Please enter password');
+      setWifiStatus('❌ Please enter password');
       return;
     }
 
     setSendingWifi(true);
-    setWifiStatus('Sending credentials...');
+    setWifiStatus('📡 Connecting to ESP32...');
 
-    try {
-      const body = `ssid=${encodeURIComponent(wifiSsid)}&password=${encodeURIComponent(wifiPassword)}`;
-      
-      // Add timeout to the fetch request
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
-      const res = await fetch('http://192.168.4.1/setWifi', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      const text = await res.text();
-      console.log('ESP32 Response:', text);
-      
-      if (res.ok) {
-        setWifiStatus(text || 'WiFi credentials sent successfully! ESP32 will restart.');
-        // Clear fields on success
-        setTimeout(() => {
-          setWifiSsid('');
-          setWifiPassword('');
-          setShowWifiSetup(false);
-          setWifiStatus('');
-        }, 3000);
-      } else {
-        setWifiStatus(`Error: ${text || 'Failed to configure WiFi'}`);
+    // Try both IPs: AP mode (192.168.4.1) and Station mode (192.168.1.100)
+    const possibleIPs = ['192.168.4.1', '192.168.1.100'];
+    let success = false;
+    let lastError = '';
+
+    for (const ESP32_IP of possibleIPs) {
+      try {
+        const body = `ssid=${encodeURIComponent(wifiSsid)}&password=${encodeURIComponent(wifiPassword)}`;
+        
+        console.log(`Trying ESP32 at ${ESP32_IP}...`);
+        setWifiStatus(`📡 Trying ${ESP32_IP}...`);
+        
+        const response = await fetch(`http://${ESP32_IP}/setWifi`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body,
+        });
+        
+        const text = await response.text();
+        console.log(`ESP32 Response from ${ESP32_IP}:`, text);
+        
+        if (response.ok) {
+          setWifiStatus('✅ ' + (text || 'WiFi credentials sent! ESP32 will restart and connect to your WiFi.'));
+          success = true;
+          
+          // Clear fields on success
+          setTimeout(() => {
+            setWifiSsid('');
+            setWifiPassword('');
+            setWifiStatus('');
+          }, 5000);
+          
+          break; // Exit loop on success
+        }
+      } catch (error: any) {
+        console.log(`Failed at ${ESP32_IP}:`, error.message);
+        lastError = error.message;
+        // Continue to next IP
       }
-    } catch (e: any) {
-      console.error('WiFi send error:', e);
-      if (e.name === 'AbortError') {
-        setWifiStatus('Request timeout. Make sure you are connected to "AquaTech-Setup" WiFi network.');
-      } else {
-        setWifiStatus('Failed to send WiFi credentials. Make sure you are connected to ESP32 AP (AquaTech-Setup).');
-      }
-    } finally {
-      setSendingWifi(false);
     }
+
+    if (!success) {
+      setWifiStatus(
+        '❌ Cannot reach ESP32\n\n' +
+        'FIRST TIME SETUP:\n' +
+        '1. Go to phone WiFi settings\n' +
+        '2. Connect to "AquaTech-Setup"\n' +
+        '3. Return to app and try again\n\n' +
+        'TO UPDATE WiFi:\n' +
+        'Make sure phone is on same WiFi as ESP32\n\n' +
+        `Tried: ${possibleIPs.join(', ')}`
+      );
+    }
+
+    setSendingWifi(false);
   };
 
   const controlButtons = [
@@ -455,71 +463,92 @@ const DashboardScreen: React.FC = () => {
 
   const exportDataCSV = async () => {
     try {
-      // Build CSV from chartData (labels + datasets)
+      // Request media library permissions
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        setDbStatus('Permission denied. Please enable storage permissions in settings.');
+        return;
+      }
+
+      // Build Excel data from chartData (labels + datasets)
       const labels = chartData.labels || [];
       const tempDs = chartData.datasets[0]?.data || [];
       const ammoDs = chartData.datasets[1]?.data || [];
       const turbDs = chartData.datasets[2]?.data || [];
 
-      const rows = ['time,temperature,ammonia,turbidity'];
+      // Create worksheet data with headers
+      const wsData = [
+        ['Time', 'Temperature (°C)', 'Ammonia (ppm)', 'Turbidity (%)']
+      ];
+
+      // Add data rows
       for (let i = 0; i < labels.length; i++) {
-        const row = [
-          `"${labels[i]}"`,
-          tempDs[i] != null ? String(tempDs[i]) : '',
-          ammoDs[i] != null ? String(ammoDs[i]) : '',
-          turbDs[i] != null ? String(turbDs[i]) : '',
-        ].join(',');
-        rows.push(row);
+        wsData.push([
+          labels[i] || '',
+          tempDs[i] != null ? tempDs[i].toString() : '',
+          ammoDs[i] != null ? ammoDs[i].toString() : '',
+          turbDs[i] != null ? turbDs[i].toString() : '',
+        ]);
       }
 
-      const csv = rows.join('\n');
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-      // Write CSV to a persistent file and share it when native modules are available.
-      const filename = `aquatech-data-${Date.now()}.csv`;
+      // Set column widths for better readability
+      ws['!cols'] = [
+        { wch: 15 }, // Time
+        { wch: 18 }, // Temperature
+        { wch: 18 }, // Ammonia
+        { wch: 18 }, // Turbidity
+      ];
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Water Quality Data');
+
+      // Generate Excel file as base64
+      const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+
+      // Create filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const filename = `AquaTech_Data_${timestamp}.xlsx`;
+      
+      // Write to cache directory first
+      const fileUri = FileSystem.cacheDirectory + filename;
+      await FileSystem.writeAsStringAsync(fileUri, wbout, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Save to device's media library (Downloads folder on Android)
+      const asset = await MediaLibrary.createAssetAsync(fileUri);
+      
+      // Try to add to Download album (Android) or create it
       try {
-        // Prefer the legacy API to avoid deprecation warnings on older SDKs.
-        const fsModule: any = await (async () => {
-          try {
-            return await import('expo-file-system/legacy');
-          } catch (e) {
-            try { return await import('expo-file-system'); } catch { return null; }
-          }
-        })();
-        // Do NOT import 'expo-sharing' here — importing the module can crash in Expo Go
-        // because the native module may not be available. Use `Share.share` fallback instead.
-        if (fsModule && typeof fsModule.writeAsStringAsync === 'function') {
-          const baseDir = fsModule.documentDirectory ?? fsModule.cacheDirectory ?? '';
-          const uri = baseDir + filename;
-          const enc = fsModule.EncodingType?.UTF8 ?? 'utf8';
-          await fsModule.writeAsStringAsync(uri, csv, { encoding: enc });
-          setLastExportUri(uri);
-          // Try to share the file via the React Native Share API (may accept a `url`).
-          try {
-            await Share.share({ title: 'Exported Data (CSV)', message: 'Export saved: ' + uri, url: uri });
-            setDbStatus('Export saved and shared (via Share)');
-          } catch (e) {
-            // If sharing fails, fallback to sharing CSV text
-            await Share.share({ title: 'Exported Data (CSV)', message: csv });
-            setDbStatus('Export saved (shared as text)');
-          }
+        const album = await MediaLibrary.getAlbumAsync('Download');
+        if (album == null) {
+          await MediaLibrary.createAlbumAsync('Download', asset, false);
         } else {
-          // No filesystem available in this runtime — fallback to sharing CSV as text
-          await Share.share({ title: 'Exported Data (CSV)', message: csv });
-          setDbStatus('Export shared as text (no filesystem)');
+          await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
         }
       } catch (e) {
-        console.warn('Export failed (fallback)', e);
-        try {
-          await Share.share({ title: 'Exported Data (CSV)', message: csv });
-          setDbStatus('Export shared as text (error path)');
-        } catch (ee) {
-          console.warn('Share fallback also failed', ee);
-          setDbStatus('Export failed');
-        }
+        console.log('Could not add to Download album, file saved to media library');
       }
-    } catch (err) {
+
+      setLastExportUri(fileUri);
+      setDbStatus(`Excel file downloaded: ${filename}`);
+      
+      // Clean up cache file after a delay
+      setTimeout(async () => {
+        try {
+          await FileSystem.deleteAsync(fileUri, { idempotent: true });
+        } catch (e) {
+          console.warn('Failed to clean up cache file', e);
+        }
+      }, 5000);
+
+    } catch (err: any) {
       console.warn('Export failed', err);
-      setDbStatus('Export failed');
+      setDbStatus('Export failed: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -532,22 +561,22 @@ const DashboardScreen: React.FC = () => {
 
   const getTempStatus = (t: number | null) => {
     if (t == null) return 'Unknown';
-    if (t < 26 || t > 30) return 'Critical Change water immediately';
-    if (t < 27 || t > 29) return 'Warning';
+    if (t < 22 || t > 34) return 'Critical Change water immediately';
+    if (t < 26 || t > 30) return 'Warning';
     return 'Good';
   };
 
   const getTurbidityStatus = (v: number | null) => {
     if (v == null) return 'Unknown';
-    if (v >= 10) return 'Critical Change water immediately';
-    if (v >= 5) return 'Warning';
+    if (v >= 40) return 'Critical Change water immediately';
+    if (v >= 21) return 'Warning';
     return 'Good';
   };
 
   const getAmmoniaStatus = (v: number | null) => {
     if (v == null) return 'Unknown';
-    if (v >= 0.1) return 'Critical Change water immediately';
-    if (v >= 0.08) return 'Warning';
+    if (v >= 1) return 'Critical Change water immediately';
+    if (v >= 0.5) return 'Warning';
     return 'Good';
   };
 
@@ -602,16 +631,25 @@ const DashboardScreen: React.FC = () => {
 
           {showWifiSetup && (
             <View style={styles.wifiContent}>
-              <Text style={styles.wifiDescription}>
-                Configure ESP32 WiFi credentials to connect to your network
-              </Text>
+              <View style={styles.wifiInstructionBox}>
+                <MaterialIcons name="info" size={20} color={colors.info} />
+                <Text style={styles.wifiInstruction}>
+                  FIRST TIME SETUP:{'\n'}
+                  1. Connect phone to "AquaTech-Setup" WiFi{'\n'}
+                  2. Return to app and enter your home WiFi{'\n'}
+                  3. ESP32 will connect to your WiFi{'\n'}
+                  {'\n'}
+                  TO UPDATE WiFi:{'\n'}
+                  Make sure phone and ESP32 are on same WiFi
+                </Text>
+              </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Network Name (SSID)</Text>
+                <Text style={styles.inputLabel}>WiFi Name (SSID)</Text>
                 <View style={styles.inputContainer}>
                   <MaterialIcons name="wifi" size={20} color={colors.gray[400]} style={styles.inputIcon} />
                   <TextInput
-                    placeholder="Enter WiFi SSID"
+                    placeholder="Enter WiFi name"
                     value={wifiSsid}
                     onChangeText={setWifiSsid}
                     style={styles.textInput}
@@ -623,7 +661,7 @@ const DashboardScreen: React.FC = () => {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Password</Text>
+                <Text style={styles.inputLabel}>WiFi Password</Text>
                 <View style={styles.inputContainer}>
                   <MaterialIcons name="lock" size={20} color={colors.gray[400]} style={styles.inputIcon} />
                   <TextInput
@@ -653,14 +691,14 @@ const DashboardScreen: React.FC = () => {
                   color={colors.white}
                 />
                 <Text style={styles.wifiButtonText}>
-                  {sendingWifi ? 'Sending...' : 'Send to ESP32'}
+                  {sendingWifi ? 'Sending...' : 'Configure WiFi'}
                 </Text>
               </TouchableOpacity>
 
               {wifiStatus ? (
                 <View style={[
                   styles.wifiStatusContainer,
-                  wifiStatus.includes('Failed') || wifiStatus.includes('Please')
+                  wifiStatus.includes('❌')
                     ? styles.wifiStatusError
                     : styles.wifiStatusSuccess
                 ]}>
@@ -695,7 +733,7 @@ const DashboardScreen: React.FC = () => {
           <MetricCard
             title="Turbidity"
             value={currentData.turbidity}
-            unit="NTU"
+            unit="%"
             status={turbStatus}
             icon="waves"
             iconColor="#16a34a"
@@ -704,7 +742,7 @@ const DashboardScreen: React.FC = () => {
           <MetricCard
             title="Ammonia"
             value={currentData.ammonia}
-            unit="mg/L"
+            unit="ppm"
             status={ammoStatus}
             icon="science"
             iconColor="#ea580c"
@@ -800,28 +838,19 @@ const DashboardScreen: React.FC = () => {
                   <TouchableOpacity
                     onPress={async () => {
                         try {
-                                          const fsModule: any = await (async () => {
-                                            try { return await import('expo-file-system/legacy'); } catch (e) { try { return await import('expo-file-system'); } catch { return null; } }
-                                          })();
-                                          if (fsModule && typeof fsModule.readAsStringAsync === 'function') {
-                                            try {
-                                              // Prefer sharing by URL if supported
-                                              await Share.share({ title: 'Exported Data (CSV)', message: 'Export saved: ' + lastExportUri!, url: lastExportUri! });
-                                            } catch (e) {
-                                              const contents = await fsModule.readAsStringAsync(lastExportUri!);
-                                              await Share.share({ title: 'Exported Data (CSV)', message: contents });
-                                            }
-                                          } else {
-                                            // Last-resort: share a message indicating file exists but cannot be opened
-                                            await Share.share({ title: 'Exported Data (CSV)', message: 'Export file saved but cannot be opened on this client.' });
-                                          }
+                          await Share.share({ 
+                            title: 'Exported Data (Excel)', 
+                            message: 'AquaTech water quality data',
+                            url: lastExportUri! 
+                          });
                         } catch (e) {
                           console.warn('Open last export failed', e);
+                          setDbStatus('Failed to share last export');
                         }
                       }}
                     style={{ padding: 8 }}
                   >
-                    <Text style={{ color: colors.primary }}>Open Last Export</Text>
+                    <Text style={{ color: colors.primary }}>Share Last Export</Text>
                   </TouchableOpacity>
                 </View>
               ) : null}
@@ -904,9 +933,12 @@ const styles = StyleSheet.create({
   wifiCard: { backgroundColor: colors.white, borderRadius: borderRadius.lg, marginHorizontal: spacing.md, marginBottom: spacing.lg, ...shadows.medium, overflow: 'hidden' },
   wifiHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md },
   wifiContent: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  wifiInstructionBox: { flexDirection: 'row', backgroundColor: '#e0f2fe', borderRadius: borderRadius.base, padding: spacing.md, marginBottom: spacing.lg, borderWidth: 1, borderColor: '#7dd3fc' },
+  wifiInstruction: { fontSize: typography.fontSize.sm, color: '#0c4a6e', marginLeft: spacing.sm, flex: 1, lineHeight: 20 },
   wifiDescription: { fontSize: typography.fontSize.sm, color: colors.gray[600], marginBottom: spacing.lg, lineHeight: 20 },
   inputGroup: { marginBottom: spacing.md },
   inputLabel: { fontSize: typography.fontSize.sm, fontWeight: typography.fontWeight.semibold, color: colors.gray[700], marginBottom: spacing.xs },
+  inputHint: { fontSize: typography.fontSize.xs, color: colors.gray[500], marginTop: spacing.xs, marginLeft: spacing.xs },
   inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.gray[50], borderWidth: 1, borderColor: colors.gray[300], borderRadius: borderRadius.base, paddingHorizontal: spacing.sm },
   inputIcon: { marginRight: spacing.xs },
   textInput: { flex: 1, paddingVertical: spacing.sm, fontSize: typography.fontSize.base, color: colors.gray[900] },

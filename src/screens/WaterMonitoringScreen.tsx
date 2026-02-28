@@ -193,9 +193,9 @@ const WaterMonitoringScreen: React.FC = () => {
       status:
         reading?.temperature == null
           ? ('good' as const)
-          : reading.temperature < 26 || reading.temperature > 30
+          : reading.temperature < 22 || reading.temperature > 34
           ? ('critical' as const)
-          : reading.temperature < 27 || reading.temperature > 29
+          : reading.temperature < 26 || reading.temperature > 30
           ? ('warning' as const)
           : ('good' as const),
       description: 'Optimal range: 26-30°C',
@@ -203,32 +203,32 @@ const WaterMonitoringScreen: React.FC = () => {
     {
       title: 'Turbidity',
       value: (reading?.turbidity ?? 2.1).toFixed(1),
-      unit: 'NTU',
+      unit: '%',
       icon: 'waves',
       status:
         reading?.turbidity == null
           ? ('good' as const)
-          : reading.turbidity >= 10
+          : reading.turbidity >= 40
           ? ('critical' as const)
-          : reading.turbidity >= 5
+          : reading.turbidity >= 21
           ? ('warning' as const)
           : ('good' as const),
-      description: 'Recommended: < 5 NTU',
+      description: 'Ideal: < 25%, Acceptable: < 50%',
     },
     {
       title: 'Ammonia',
       value: (reading?.ammonia ?? 0.15).toFixed(2),
-      unit: 'mg/L',
+      unit: 'ppm',
       icon: 'warning',
       status:
         reading?.ammonia == null
           ? ('critical' as const)
-          : reading.ammonia >= 0.1
+          : reading.ammonia >= 1
           ? ('critical' as const)
-          : reading.ammonia >= 0.08
+          : reading.ammonia >= 0.5
           ? ('warning' as const)
           : ('good' as const),
-      description: 'Safe level: <0.08 mg/L',
+      description: 'Safe level: <0.1 ppm',
     },
   ];
 
